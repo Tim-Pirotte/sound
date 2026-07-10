@@ -46,7 +46,8 @@ void play_tone(uint pin, float frequency) {
     float sys_clk = clock_get_hz(clk_sys);
     uint32_t wrap = 10000;
 
-    // assert freq ! 0
+    hard_assert(frequency != 0);
+    hard_assert(wrap != 0);
 
     float div = sys_clk / (frequency * wrap);
 
@@ -66,7 +67,8 @@ bool is_valid_duration(int duration) {
 }
 
 char peek(const char *str, int *pos) {
-    // assert pointers not null
+    hard_assert(str != NULL);
+    hard_assert(pos != NULL);
 
     while (str[*pos] == ' ') {
         (*pos)++;
@@ -76,13 +78,15 @@ char peek(const char *str, int *pos) {
 }
 
 void advance(const char *str, int *pos) {
-    // assert pointers not null
+    hard_assert(str != NULL);
+    hard_assert(pos != NULL);
 
     if (peek(str, pos) != '\0') (*pos)++;
 }
 
 void advance_number(const char *str, int *pos) {
-    // assert pointers not null
+    hard_assert(str != NULL);
+    hard_assert(pos != NULL);
 
     for (char c = peek(str, pos); c != '\0' && '0' <= c && c <= '9'; c = peek(str, pos)) {
         advance(str, pos);
@@ -90,7 +94,9 @@ void advance_number(const char *str, int *pos) {
 }
 
 void parse_control_pair(const char *str, int *pos, Settings *settings) {
-    // assert pointers not null
+    hard_assert(str != NULL);
+    hard_assert(pos != NULL);
+    hard_assert(settings != NULL);
 
     char c = peek(str, pos);
 
@@ -168,7 +174,7 @@ int main()
         advance(song, &pos);
     }
 
-    // TODO assert ':'
+    hard_assert(peek(song, &pos) == ':');
     advance(song, &pos);
 
     Settings settings = {DEFAULT_OCTAVE, DEFAULT_DURATION, DEFAULT_BPM};
@@ -189,8 +195,7 @@ int main()
         }
     };
 
-    // TODO assert ':'
-
+    hard_assert(peek(song, &pos) == ':');
     advance(song, &pos);
 
     while (peek(song, &pos) != '\0') {
@@ -256,7 +261,9 @@ int main()
             note++;
         }
 
-        // assert bpm + duration not null
+        hard_assert(settings.bpm != 0);
+        hard_assert(duration != 0);
+
         float ms_per_note = MILLISECONDS_PER_MINUTE * QUARTER_NOTES_PER_WHOLE_NOTE / settings.bpm;
         float duration_ms = ms_per_note / duration;
 
