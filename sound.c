@@ -34,10 +34,6 @@ void __attribute__((noreturn)) __assert_func(const char *file, int line, const c
     while (true);
 }
 
-void report_error(const char *msg) {
-    printf("%s\n", msg);
-}
-
 void play_tone(uint pin, float frequency) {
     uint slice_num = pwm_gpio_to_slice_num(pin);
 
@@ -66,7 +62,28 @@ bool is_valid_duration(int duration) {
             return true;
     }
 
+    printf("Error: duration=%d but should be in [", duration);
+
+    for (int i = 0; i < VALID_DURATION_COUNT; i++) {
+        printf("%d%s", VALID_DURATIONS[i], (i < VALID_DURATION_COUNT - 1) ? ", " : "]\n");
+    }
+
     return false;
+}
+
+bool is_valid_octave(int octave) {
+    if (!(MIN_OCTAVE <= octave && octave <= MAX_OCTAVE)) {
+        printf(
+            "Error: octave=%d but should be between (inclusive) %d and %d\n",
+            octave,
+            MIN_OCTAVE,
+            MAX_OCTAVE
+        );
+
+        return false;
+    }
+
+    return true;
 }
 
 char peek(const char *str, int *pos) {
@@ -104,7 +121,7 @@ bool parse_control_pair(const char *str, int *pos, Settings *settings) {
     char c = peek(str, pos);
 
     if (c == '\0') {
-        report_error("expected a control pair but got the end of the file");
+        printf("Error: expected a control pair but got the end of the file\n");
 
         return false;
     }
@@ -119,8 +136,8 @@ bool parse_control_pair(const char *str, int *pos, Settings *settings) {
         case 'o':
             int octave = atoi(&str[*pos]);
 
-            if (!(MIN_OCTAVE <= octave && octave <= MAX_OCTAVE)) {
-                // TODO error
+            if (!is_valid_octave(octave)) {
+                return false;
             }
 
             settings->default_octave = octave;
@@ -130,7 +147,7 @@ bool parse_control_pair(const char *str, int *pos, Settings *settings) {
             int duration = atoi(&str[*pos]);
 
             if (!is_valid_duration(duration)) {
-                // TODO error
+                return false;
             }
 
             settings->default_duration = duration;
@@ -140,7 +157,9 @@ bool parse_control_pair(const char *str, int *pos, Settings *settings) {
             int bpm = atoi(&str[*pos]);
 
             if (bpm <= 0) {
-                // TODO error
+                printf("Error: BPM should be larger than 0\n");
+
+                return false;
             }
 
             settings->bpm = bpm;
@@ -153,7 +172,9 @@ bool parse_control_pair(const char *str, int *pos, Settings *settings) {
     advance_number(str, pos);
 
     if (*pos == pos_before) {
-        // TODO error
+        printf("Error: expected a numerical value in a control pair\n");
+
+        return false;
     }
 
     return true;
@@ -163,22 +184,30 @@ void run() {
     stdio_init_all();
     gpio_set_function(BUZZER_PIN, GPIO_FUNC_PWM);
 
-    char song[] = "smwwd1:";
+    char song[] = "smwwd17:o=4o=4:";
 
     int pos = 0;
 
-    // Skip the name
+    printf("Playing: ");
+
     for (char c = peek(song, &pos); c != ':'; c = peek(song, &pos)) {
         if (c == '\0') {
-            // TODO error
+            printf("\nError: name should be followed by ':'\n");
+
+            return;
         }
 
         if (pos + 1 > MAX_NAME_LENGTH) {
-            // TODO handle error
+            printf("\nError: name cannot be longer than %d characters\n", MAX_NAME_LENGTH);
+
+            return;
         }
 
+        putchar(c);
         advance(song, &pos);
     }
+
+    putchar('\n');
 
     hard_assert(peek(song, &pos) == ':');
     advance(song, &pos);
@@ -187,7 +216,9 @@ void run() {
 
     for (char c = peek(song, &pos); c != ':'; c = peek(song, &pos)) {
         if (c == '\0') {
-            // TODO error
+            printf("Error: expected the control section to end with ':'\n");
+
+            return;
         }
 
         bool ok = parse_control_pair(song, &pos, &settings);
@@ -201,7 +232,9 @@ void run() {
         if (c == ',') {
             advance(song, &pos);
         } else if (c != ':') {
-            // TODO error
+            printf("Error: control pairs should contain ',' between them\n");
+
+            return;
         }
     };
 
@@ -213,7 +246,7 @@ void run() {
         duration = duration ? duration : settings.default_duration;
 
         if (!is_valid_duration(duration)) {
-            // TODO error
+            return;
         }
 
         advance_number(song, &pos);
@@ -290,8 +323,8 @@ void run() {
         int octave = atoi(&song[pos]);
         octave = octave ? octave : settings.default_octave;
 
-        if (!(MIN_OCTAVE <= octave && octave <= MAX_OCTAVE)) {
-            // TODO error
+        if (!is_valid_octave(octave)) {
+            return;
         }
 
         advance_number(song, &pos);
@@ -301,7 +334,9 @@ void run() {
         if (c == ',') {
             advance(song, &pos);
         } else if (c != '\0') {
-            // TODO error
+            printf("Error: tone commands should contain ',' between them\n");
+
+            return;
         }
 
         float frequency = FREQUENCY_LUT[octave * OCTAVE_SIZE + note];
