@@ -19,6 +19,7 @@ static const int MAX_OCTAVE = 7;
 static const int VALID_DURATIONS[] = {1, 2, 4, 8, 16, 32};
 static const int VALID_DURATION_COUNT = sizeof(VALID_DURATIONS) / sizeof(VALID_DURATIONS[0]);
 static const int INTERMEDIATE_DELAY_MS = 20;
+static const int MAX_NAME_LENGTH = 10;
 
 typedef struct {
     int default_octave;
@@ -42,6 +43,15 @@ void play_tone(uint pin, float frequency) {
     pwm_set_wrap(slice_num, wrap);
     pwm_set_gpio_level(pin, wrap / 2);
     pwm_set_enabled(slice_num, true);
+}
+
+bool is_valid_duration(int duration) {
+    for (size_t i = 0; i < VALID_DURATION_COUNT; i++) {
+        if (VALID_DURATIONS[i] == duration)
+            return true;
+    }
+
+    return false;
 }
 
 char peek(const char *str, int *pos) {
@@ -77,22 +87,33 @@ void parse_control_pair(const char *str, int *pos, Settings *settings) {
 
     switch (c) {
         case 'o':
-            settings->default_octave = atoi(&str[*pos]);
+            int octave = atoi(&str[*pos]);
 
-            if (!(4 <= settings->default_octave && settings->default_octave <= 7)) {
+            if (!(MIN_OCTAVE <= octave && octave <= MAX_OCTAVE)) {
                 // TODO error
             }
+
+            settings->default_octave = octave;
 
             break;
         case 'd':
-            settings->default_duration = atoi(&str[*pos]);
-            break;
-        case 'b':
-            settings->bpm = atoi(&str[*pos]);
+            int duration = atoi(&str[*pos]);
 
-            if (settings->bpm <= 0) {
+            if (!is_valid_duration(duration)) {
                 // TODO error
             }
+
+            settings->default_duration = duration;
+
+            break;
+        case 'b':
+            int bpm = atoi(&str[*pos]);
+
+            if (bpm <= 0) {
+                // TODO error
+            }
+
+            settings->bpm = bpm;
 
             break;
     }
@@ -106,22 +127,12 @@ void parse_control_pair(const char *str, int *pos, Settings *settings) {
     }
 }
 
-bool is_valid_duration(int duration)
-{
-    for (size_t i = 0; i < VALID_DURATION_COUNT; i++) {
-        if (VALID_DURATIONS[i] == duration)
-            return true;
-    }
-
-    return false;
-}
-
 int main()
 {
     stdio_init_all();
     gpio_set_function(BUZZER_PIN, GPIO_FUNC_PWM);
 
-    char song[] = "smario2:d=4,o=5,b=125:8g,16c,8e,8g.,16c,8e,16g,16c,16e,16g,8b,a,8p,16c,8g,16c,8e,8g.,16c,8e,16g,16c#,16e,16g,8b,a,8p,16b,8c6,16b,8c6,8a.,16c6,8b,16a,8g,16f#,8g,8e.,16c,8d,16e,8f,16e,8f,8b.4,16e,8d.,c";
+    char song[] = "smwwd1:d=4,o=5,b=125:A,8F.,16C,16D,16F,16P,F,16D,16C,16P,16F,16P,16F,16P,8C6,8A.,G,16C,A,8F.,16C,16D,16F,16P,F,16D,16C,16P,16F,16P,16A#,16A,16G,2F,16P,8A.,8F.,8C,8A.,F,16G#,16F,16C,16P,8G#.,2G,8A.,8F.,8C,8A.,F,16G#,16F,8C,2C6,A,8F.,16C,16D,16F,16P,F,16D,16C,16P,16F,16P,16F,16P,8C6,8A.,G,16C,A,8F.,16C,16D,16F,16P,F,16D,16C,16P,16F,16P,16A#,16A,16G,2F";
 
     int pos = 0;
 
@@ -131,13 +142,14 @@ int main()
             // TODO error
         }
 
-        if (pos + 1 > 10) {
+        if (pos + 1 > MAX_NAME_LENGTH) {
             // TODO handle error
         }
 
         advance(song, &pos);
     }
 
+    // TODO assert ':'
     advance(song, &pos);
 
     Settings settings = {DEFAULT_OCTAVE, DEFAULT_DURATION, DEFAULT_BPM};
@@ -162,11 +174,13 @@ int main()
 
     advance(song, &pos);
 
-    float ms_per_note = MILLISECONDS_PER_MINUTE * QUARTER_NOTES_PER_WHOLE_NOTE / settings.bpm;
-
     while (peek(song, &pos) != '\0') {
         int duration = atoi(&song[pos]);
         duration = duration ? duration : settings.default_duration;
+
+        if (!is_valid_duration(duration)) {
+            // TODO error
+        }
 
         advance_number(song, &pos);
 
@@ -174,45 +188,45 @@ int main()
         bool can_have_sharp = false;
 
         switch (peek(song, &pos)) {
-            case 'a':
+            case 'A':
                 note = A;
                 can_have_sharp = true;
 
                 break;
-            case 'b':
+            case 'B':
                 note = B;
 
                 break;
-            case 'c':
+            case 'C':
                 note = C;
                 can_have_sharp = true;
 
                 break;
-            case 'd':
+            case 'D':
                 note = D;
                 can_have_sharp = true;
 
                 break;
-            case 'e':
+            case 'E':
                 note = E;
 
                 break;
-            case 'f':
+            case 'F':
                 note = F;
                 can_have_sharp = true;
 
                 break;
-            case 'g':
+            case 'G':
                 note = G;
                 can_have_sharp = true;
 
                 break;
-            case 'p':
+            case 'P':
                 note = P;
 
                 break;
             default:
-                // TODO handle error
+                parse_control_pair(song, &pos, &settings);
         }
 
         advance(song, &pos);
@@ -223,6 +237,7 @@ int main()
             note++;
         }
 
+        float ms_per_note = MILLISECONDS_PER_MINUTE * QUARTER_NOTES_PER_WHOLE_NOTE / settings.bpm;
         float duration_ms = ms_per_note / duration;
 
         if (peek(song, &pos) == '.') {
@@ -234,10 +249,18 @@ int main()
         int octave = atoi(&song[pos]);
         octave = octave ? octave : settings.default_octave;
 
+        if (!(MIN_OCTAVE <= octave && octave <= MAX_OCTAVE)) {
+            // TODO error
+        }
+
         advance_number(song, &pos);
 
-        if (peek(song, &pos) == ',') {
+        char c = peek(song, &pos);
+
+        if (c == ',') {
             advance(song, &pos);
+        } else if (c != '\0') {
+            // TODO error
         }
 
         float frequency = FREQUENCY_LUT[octave * OCTAVE_SIZE + note];
@@ -251,6 +274,6 @@ int main()
     play_tone(BUZZER_PIN, 0.0f);
 
     while (true) {
-        sleep_ms(1000);
+        sleep_ms(10000);
     }
 }
