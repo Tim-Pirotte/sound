@@ -40,6 +40,7 @@ add_compile_definitions(PARAM_ASSERTIONS_ENABLE_ALL=1)
 add_executable(sound
     sound.c
     frequency_lut.c
+    bsp.c
 )
 
 pico_set_program_name(sound "sound")

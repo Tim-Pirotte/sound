@@ -1,14 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "pico/stdlib.h"
-#include "hardware/pwm.h"
-#include "hardware/clocks.h"
 #include "pico/assert.h"
-#include "hardware/watchdog.h"
 
 #include "frequency_lut.h"
+#include "bsp.h"
 
-static const int BUZZER_PIN = 28;
 static const int DEFAULT_OCTAVE = 6;
 static const int DEFAULT_DURATION = 4;
 static const int DEFAULT_BPM = 63;
@@ -27,34 +24,6 @@ typedef struct {
     int default_duration;
     int bpm;
 } Settings;
-
-void __attribute__((noreturn)) __assert_func(const char *file, int line, const char *func, const char *failedexpr) {
-    watchdog_reboot(0, 0, 0);
-
-    while (true);
-}
-
-void play_tone(uint pin, float frequency) {
-    uint slice_num = pwm_gpio_to_slice_num(pin);
-
-    if (frequency == 0) {
-        pwm_set_gpio_level(pin, 0);
-        return;
-    }
-
-    float sys_clk = clock_get_hz(clk_sys);
-    uint32_t wrap = 10000;
-
-    hard_assert(frequency != 0);
-    hard_assert(wrap != 0);
-
-    float div = sys_clk / (frequency * wrap);
-
-    pwm_set_clkdiv(slice_num, div);
-    pwm_set_wrap(slice_num, wrap);
-    pwm_set_gpio_level(pin, wrap / 2);
-    pwm_set_enabled(slice_num, true);
-}
 
 bool is_valid_duration(int duration) {
     for (size_t i = 0; i < VALID_DURATION_COUNT; i++) {
@@ -184,7 +153,7 @@ void run() {
     stdio_init_all();
     gpio_set_function(BUZZER_PIN, GPIO_FUNC_PWM);
 
-    char song[] = "smwwd17:o=4o=4:";
+    char song[] = "smwwd1:d=4,o=5,b=125:A,8F.,16C,16D,16F,16P,F,16D,16C,16P,16F,16P,16F,16P,8C6,8A.,G,16C,A,8F.,16C,16D,16F,16P,F,16D,16C,16P,16F,16P,16A#,16A,16G,2F,16P,8A.,8F.,8C,8A.,F,16G#,16F,16C,16P,8G#.,2G,8A.,8F.,8C,8A.,F,16G#,16F,8C,2C6,A,8F.,16C,16D,16F,16P,F,16D,16C,16P,16F,16P,16F,16P,8C6,8A.,G,16C,A,8F.,16C,16D,16F,16P,F,16D,16C,16P,16F,16P,16A#,16A,16G,2F";
 
     int pos = 0;
 
@@ -341,13 +310,13 @@ void run() {
 
         float frequency = FREQUENCY_LUT[octave * OCTAVE_SIZE + note];
 
-        play_tone(BUZZER_PIN, frequency);
+        play_tone(frequency);
         sleep_ms(duration_ms);
-        play_tone(BUZZER_PIN, 0.0f);
+        play_tone(0.0f);
         sleep_ms(INTERMEDIATE_DELAY_MS);
     }
 
-    play_tone(BUZZER_PIN, 0.0f);
+    play_tone(0.0f);
 }
 
 int main()
