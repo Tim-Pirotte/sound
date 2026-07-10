@@ -4,6 +4,8 @@
 #include "pico/stdlib.h"
 #include "hardware/pwm.h"
 #include "hardware/clocks.h"
+#include "pico/assert.h"
+#include "hardware/watchdog.h"
 
 #include "frequency_lut.h"
 
@@ -27,6 +29,12 @@ typedef struct {
     int bpm;
 } Settings;
 
+void __attribute__((noreturn)) __assert_func(const char *file, int line, const char *func, const char *failedexpr) {
+    watchdog_reboot(0, 0, 0);
+
+    while (true);
+}
+
 void play_tone(uint pin, float frequency) {
     uint slice_num = pwm_gpio_to_slice_num(pin);
 
@@ -37,6 +45,9 @@ void play_tone(uint pin, float frequency) {
 
     float sys_clk = clock_get_hz(clk_sys);
     uint32_t wrap = 10000;
+
+    // assert freq ! 0
+
     float div = sys_clk / (frequency * wrap);
 
     pwm_set_clkdiv(slice_num, div);
@@ -55,6 +66,8 @@ bool is_valid_duration(int duration) {
 }
 
 char peek(const char *str, int *pos) {
+    // assert pointers not null
+
     while (str[*pos] == ' ') {
         (*pos)++;
     }
@@ -63,16 +76,22 @@ char peek(const char *str, int *pos) {
 }
 
 void advance(const char *str, int *pos) {
+    // assert pointers not null
+
     if (peek(str, pos) != '\0') (*pos)++;
 }
 
 void advance_number(const char *str, int *pos) {
+    // assert pointers not null
+
     for (char c = peek(str, pos); c != '\0' && '0' <= c && c <= '9'; c = peek(str, pos)) {
         advance(str, pos);
     };
 }
 
 void parse_control_pair(const char *str, int *pos, Settings *settings) {
+    // assert pointers not null
+
     char c = peek(str, pos);
 
     if (c == '\0') {
@@ -237,6 +256,7 @@ int main()
             note++;
         }
 
+        // assert bpm + duration not null
         float ms_per_note = MILLISECONDS_PER_MINUTE * QUARTER_NOTES_PER_WHOLE_NOTE / settings.bpm;
         float duration_ms = ms_per_note / duration;
 
