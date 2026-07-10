@@ -33,6 +33,8 @@ project(sound C CXX ASM)
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
+add_compile_definitions(PARAM_ASSERTIONS_ENABLE_ALL=1)
+
 # Add executable. Default name is the project name, version 0.1
 
 add_executable(sound
