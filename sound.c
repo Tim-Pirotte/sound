@@ -7,27 +7,18 @@
 
 #include "frequency_lut.h"
 
-#define BUZZER_PIN 28
-
-#define MILLISECONDS_PER_MINUTE 60 * 1000
-#define QUARTER_NOTES_PER_WHOLE_NOTE 4
-#define DOTTED_NOTE_MULTIPLIER 1.5f
-
-enum Note {
-    P,
-    A,
-    A_SHARP,
-    B,
-    C,
-    C_SHARP,
-    D,
-    D_SHARP,
-    E,
-    F,
-    F_SHARP,
-    G,
-    G_SHARP
-};
+static const int BUZZER_PIN = 28;
+static const int DEFAULT_OCTAVE = 6;
+static const int DEFAULT_DURATION = 4;
+static const int DEFAULT_BPM = 63;
+static const int MILLISECONDS_PER_MINUTE = 60 * 1000;
+static const int QUARTER_NOTES_PER_WHOLE_NOTE = 4;
+static const float DOTTED_NOTE_MULTIPLIER = 1.5f;
+static const int MIN_OCTAVE = 4;
+static const int MAX_OCTAVE = 7;
+static const int VALID_DURATIONS[] = {1, 2, 4, 8, 16, 32};
+static const int VALID_DURATION_COUNT = sizeof(VALID_DURATIONS) / sizeof(VALID_DURATIONS[0]);
+static const int INTERMEDIATE_DELAY_MS = 20;
 
 typedef struct {
     int default_octave;
@@ -80,15 +71,18 @@ void parse_control_pair(const char *str, int *pos, Settings *settings) {
 
     advance(str, pos);
 
-    if (peek(str, pos) != '=') {
-        // TODO error
+    if (peek(str, pos) == '=') {
+        advance(str, pos);
     }
-
-    advance(str, pos);
 
     switch (c) {
         case 'o':
             settings->default_octave = atoi(&str[*pos]);
+
+            if (!(4 <= settings->default_octave && settings->default_octave <= 7)) {
+                // TODO error
+            }
+
             break;
         case 'd':
             settings->default_duration = atoi(&str[*pos]);
@@ -110,6 +104,16 @@ void parse_control_pair(const char *str, int *pos, Settings *settings) {
     if (*pos == pos_before) {
         // TODO error
     }
+}
+
+bool is_valid_duration(int duration)
+{
+    for (size_t i = 0; i < VALID_DURATION_COUNT; i++) {
+        if (VALID_DURATIONS[i] == duration)
+            return true;
+    }
+
+    return false;
 }
 
 int main()
@@ -136,9 +140,7 @@ int main()
 
     advance(song, &pos);
 
-    Settings settings = {6, 4, 63};
-
-    bool must_follow_with_control_section = false;
+    Settings settings = {DEFAULT_OCTAVE, DEFAULT_DURATION, DEFAULT_BPM};
 
     for (char c = peek(song, &pos); c != ':'; c = peek(song, &pos)) {
         if (c == '\0') {
@@ -238,12 +240,12 @@ int main()
             advance(song, &pos);
         }
 
-        float frequency = FREQUENCY_LUT[octave * 13 + note];
+        float frequency = FREQUENCY_LUT[octave * OCTAVE_SIZE + note];
 
         play_tone(BUZZER_PIN, frequency);
         sleep_ms(duration_ms);
         play_tone(BUZZER_PIN, 0.0f);
-        sleep_ms(20);
+        sleep_ms(INTERMEDIATE_DELAY_MS);
     }
 
     play_tone(BUZZER_PIN, 0.0f);

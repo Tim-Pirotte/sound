@@ -1,6 +1,6 @@
 #include "frequency_lut.h"
 
-const float FREQUENCY_LUT[FREQUENCY_LUT_SIZE] = {
+const float FREQUENCY_LUT[NOTE_COUNT * OCTAVE_COUNT] = {
     0.0f,    // P
     27.500f, // A0
     29.135f, // A0#
