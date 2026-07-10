@@ -9,6 +9,10 @@
 
 #define BUZZER_PIN 28
 
+#define MILLISECONDS_PER_MINUTE 60 * 1000
+#define QUARTER_NOTES_PER_WHOLE_NOTE 4
+#define DOTTED_NOTE_MULTIPLIER 1.5f
+
 enum Note {
     P,
     A,
@@ -24,6 +28,12 @@ enum Note {
     G,
     G_SHARP
 };
+
+typedef struct {
+    int default_octave;
+    int default_duration;
+    int bpm;
+} Settings;
 
 void play_tone(uint pin, float frequency) {
     uint slice_num = pwm_gpio_to_slice_num(pin);
@@ -61,6 +71,47 @@ void advance_number(const char *str, int *pos) {
     };
 }
 
+void parse_control_pair(const char *str, int *pos, Settings *settings) {
+    char c = peek(str, pos);
+
+    if (c == '\0') {
+        // TODO error
+    }
+
+    advance(str, pos);
+
+    if (peek(str, pos) != '=') {
+        // TODO error
+    }
+
+    advance(str, pos);
+
+    switch (c) {
+        case 'o':
+            settings->default_octave = atoi(&str[*pos]);
+            break;
+        case 'd':
+            settings->default_duration = atoi(&str[*pos]);
+            break;
+        case 'b':
+            settings->bpm = atoi(&str[*pos]);
+
+            if (settings->bpm <= 0) {
+                // TODO error
+            }
+
+            break;
+    }
+
+    int pos_before = *pos;
+
+    advance_number(str, pos);
+
+    if (*pos == pos_before) {
+        // TODO error
+    }
+}
+
 int main()
 {
     stdio_init_all();
@@ -85,61 +136,35 @@ int main()
 
     advance(song, &pos);
 
-    int default_octave = 6;
-    int default_duration = 4;
-    int bpm = 63;
+    Settings settings = {6, 4, 63};
 
     bool must_follow_with_control_section = false;
 
-    for (char c = peek(song, &pos); c != '\0' && c != ':'; c = peek(song, &pos)) {
-        advance(song, &pos);
-
-        if (peek(song, &pos) != '=') {
-            // TODO handle error
+    for (char c = peek(song, &pos); c != ':'; c = peek(song, &pos)) {
+        if (c == '\0') {
+            // TODO error
         }
 
-        advance(song, &pos);
+        parse_control_pair(song, &pos, &settings);
 
-        switch (c) {
-            case 'o':
-                default_octave = atoi(&song[pos]);
-                break;
-            case 'd':
-                default_duration = atoi(&song[pos]);
-                break;
-            case 'b':
-                bpm = atoi(&song[pos]);
-                break;
-        }
+        c = peek(song, &pos);
 
-        advance_number(song, &pos);
-
-        if (peek(song, &pos) == ',') {
+        if (c == ',') {
             advance(song, &pos);
-
-            must_follow_with_control_section = true;
-        } else {
-            must_follow_with_control_section = false;
+        } else if (c != ':') {
+            // TODO error
         }
     };
-
-    if (peek(song, &pos) == '\0') {
-        // TODO error
-    }
-
-    if (must_follow_with_control_section) {
-        // TODO error
-    }
 
     // TODO assert ':'
 
     advance(song, &pos);
 
-    float ms_per_note = (60.0f * 1000.0f * 4.0f) / bpm;
+    float ms_per_note = MILLISECONDS_PER_MINUTE * QUARTER_NOTES_PER_WHOLE_NOTE / settings.bpm;
 
     while (peek(song, &pos) != '\0') {
         int duration = atoi(&song[pos]);
-        duration = duration ? duration : default_duration;
+        duration = duration ? duration : settings.default_duration;
 
         advance_number(song, &pos);
 
@@ -201,11 +226,11 @@ int main()
         if (peek(song, &pos) == '.') {
             advance(song, &pos);
 
-            duration_ms *= 1.5f;
+            duration_ms *= DOTTED_NOTE_MULTIPLIER;
         }
 
         int octave = atoi(&song[pos]);
-        octave = octave ? octave : default_octave;
+        octave = octave ? octave : settings.default_octave;
 
         advance_number(song, &pos);
 
