@@ -1,0 +1,8 @@
+#ifndef FREQUENCY_LUT_H
+#define FREQUENCY_LUT_H
+
+#define FREQUENCY_LUT_SIZE 130
+
+extern const float FREQUENCY_LUT[FREQUENCY_LUT_SIZE];
+
+#endif

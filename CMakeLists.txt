@@ -35,7 +35,10 @@ pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(sound sound.c )
+add_executable(sound
+    sound.c
+    frequency_lut.c
+)
 
 pico_set_program_name(sound "sound")
 pico_set_program_version(sound "0.1")
