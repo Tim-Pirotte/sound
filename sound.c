@@ -34,6 +34,10 @@ void __attribute__((noreturn)) __assert_func(const char *file, int line, const c
     while (true);
 }
 
+void report_error(const char *msg) {
+    printf("%s\n", msg);
+}
+
 void play_tone(uint pin, float frequency) {
     uint slice_num = pwm_gpio_to_slice_num(pin);
 
@@ -92,7 +96,7 @@ void advance_number(const char *str, int *pos) {
     };
 }
 
-void parse_control_pair(const char *str, int *pos, Settings *settings) {
+bool parse_control_pair(const char *str, int *pos, Settings *settings) {
     hard_assert(str != NULL);
     hard_assert(pos != NULL);
     hard_assert(settings != NULL);
@@ -100,7 +104,9 @@ void parse_control_pair(const char *str, int *pos, Settings *settings) {
     char c = peek(str, pos);
 
     if (c == '\0') {
-        // TODO error
+        report_error("expected a control pair but got the end of the file");
+
+        return false;
     }
 
     advance(str, pos);
@@ -149,14 +155,15 @@ void parse_control_pair(const char *str, int *pos, Settings *settings) {
     if (*pos == pos_before) {
         // TODO error
     }
+
+    return true;
 }
 
-int main()
-{
+void run() {
     stdio_init_all();
     gpio_set_function(BUZZER_PIN, GPIO_FUNC_PWM);
 
-    char song[] = "smwwd1:d=4,o=5,b=125:A,8F.,16C,16D,16F,16P,F,16D,16C,16P,16F,16P,16F,16P,8C6,8A.,G,16C,A,8F.,16C,16D,16F,16P,F,16D,16C,16P,16F,16P,16A#,16A,16G,2F,16P,8A.,8F.,8C,8A.,F,16G#,16F,16C,16P,8G#.,2G,8A.,8F.,8C,8A.,F,16G#,16F,8C,2C6,A,8F.,16C,16D,16F,16P,F,16D,16C,16P,16F,16P,16F,16P,8C6,8A.,G,16C,A,8F.,16C,16D,16F,16P,F,16D,16C,16P,16F,16P,16A#,16A,16G,2F";
+    char song[] = "smwwd1:";
 
     int pos = 0;
 
@@ -183,7 +190,11 @@ int main()
             // TODO error
         }
 
-        parse_control_pair(song, &pos, &settings);
+        bool ok = parse_control_pair(song, &pos, &settings);
+
+        if (!ok) {
+            return;
+        }
 
         c = peek(song, &pos);
 
@@ -249,7 +260,11 @@ int main()
 
                 break;
             default:
-                parse_control_pair(song, &pos, &settings);
+                bool ok = parse_control_pair(song, &pos, &settings);
+
+                if (!ok) {
+                    return;
+                }
         }
 
         advance(song, &pos);
@@ -298,6 +313,11 @@ int main()
     }
 
     play_tone(BUZZER_PIN, 0.0f);
+}
+
+int main()
+{
+    run();
 
     while (true) {
         sleep_ms(10000);
