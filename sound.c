@@ -51,16 +51,14 @@ char peek(const char *str, int *pos) {
     return str[(*pos)];
 }
 
-char advance(const char *str, int *pos) {
+void advance(const char *str, int *pos) {
     if (peek(str, pos) != '\0') (*pos)++;
 }
 
-void advance_after(const char *str, int *pos, const char to_skip) {
-    for (char c = peek(str, pos); c != '\0' && c != to_skip; c = peek(str, pos)) {
+void advance_number(const char *str, int *pos) {
+    for (char c = peek(str, pos); c != '\0' && '0' <= c && c <= '9'; c = peek(str, pos)) {
         advance(str, pos);
-    }
-
-    advance(str, pos);
+    };
 }
 
 int main()
@@ -73,32 +71,79 @@ int main()
     int pos = 0;
 
     // Skip the name
-    advance_after(song, &pos, ':');
+    for (char c = peek(song, &pos); c != ':'; c = peek(song, &pos)) {
+        if (c == '\0') {
+            // TODO error
+        }
 
-    // TODO handle end of string error
+        if (pos + 1 > 10) {
+            // TODO handle error
+        }
 
-    advance_after(song, &pos, '=');
-    int default_duration = atoi(&song[pos]);
-    advance_after(song, &pos, ',');
+        advance(song, &pos);
+    }
 
-    advance_after(song, &pos, '=');
-    int default_octave = atoi(&song[pos]);
-    advance_after(song, &pos, ',');
+    advance(song, &pos);
 
-    advance_after(song, &pos, '=');
-    int bpm = atoi(&song[pos]);
+    int default_octave = 6;
+    int default_duration = 4;
+    int bpm = 63;
+
+    bool must_follow_with_control_section = false;
+
+    for (char c = peek(song, &pos); c != '\0' && c != ':'; c = peek(song, &pos)) {
+        advance(song, &pos);
+
+        if (peek(song, &pos) != '=') {
+            // TODO handle error
+        }
+
+        advance(song, &pos);
+
+        switch (c) {
+            case 'o':
+                default_octave = atoi(&song[pos]);
+                break;
+            case 'd':
+                default_duration = atoi(&song[pos]);
+                break;
+            case 'b':
+                bpm = atoi(&song[pos]);
+                break;
+        }
+
+        advance_number(song, &pos);
+
+        if (peek(song, &pos) == ',') {
+            advance(song, &pos);
+
+            must_follow_with_control_section = true;
+        } else {
+            must_follow_with_control_section = false;
+        }
+    };
+
+    if (peek(song, &pos) == '\0') {
+        // TODO error
+    }
+
+    if (must_follow_with_control_section) {
+        // TODO error
+    }
+
+    // TODO assert ':'
+
+    advance(song, &pos);
+
     float ms_per_note = (60.0f * 1000.0f * 4.0f) / bpm;
-    advance_after(song, &pos, ':');
 
-    while (pos < strlen(song)) {
+    while (peek(song, &pos) != '\0') {
         int duration = atoi(&song[pos]);
         duration = duration ? duration : default_duration;
 
-        for (char c = peek(song, &pos); c != '\0' && '0' <= c && c <= '9'; c = peek(song, &pos)) {
-            advance(song, &pos);
-        };
+        advance_number(song, &pos);
 
-        int  note           = P;
+        int  note = P;
         bool can_have_sharp = false;
 
         switch (peek(song, &pos)) {
@@ -162,9 +207,7 @@ int main()
         int octave = atoi(&song[pos]);
         octave = octave ? octave : default_octave;
 
-        for (char c = peek(song, &pos); c != '\0' && '0' <= c && c <= '9'; c = peek(song, &pos)) {
-            advance(song, &pos);
-        }
+        advance_number(song, &pos);
 
         if (peek(song, &pos) == ',') {
             advance(song, &pos);
