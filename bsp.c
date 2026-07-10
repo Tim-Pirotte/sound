@@ -5,10 +5,17 @@
 
 #include "bsp.h"
 
+#define BUZZER_PIN 28
+
 void __attribute__((noreturn)) __assert_func(const char *file, int line, const char *func, const char *failedexpr) {
     watchdog_reboot(0, 0, 0);
 
     while (true);
+}
+
+void bsp_init() {
+    stdio_init_all();
+    gpio_set_function(BUZZER_PIN, GPIO_FUNC_PWM);
 }
 
 void play_tone(float frequency) {

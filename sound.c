@@ -5,6 +5,7 @@
 
 #include "frequency_lut.h"
 #include "bsp.h"
+#include "rtttl.h"
 
 static const int DEFAULT_OCTAVE = 6;
 static const int DEFAULT_DURATION = 4;
@@ -12,147 +13,10 @@ static const int DEFAULT_BPM = 63;
 static const int MILLISECONDS_PER_MINUTE = 60 * 1000;
 static const int QUARTER_NOTES_PER_WHOLE_NOTE = 4;
 static const float DOTTED_NOTE_MULTIPLIER = 1.5f;
-static const int MIN_OCTAVE = 4;
-static const int MAX_OCTAVE = 7;
-static const int VALID_DURATIONS[] = {1, 2, 4, 8, 16, 32};
-static const int VALID_DURATION_COUNT = sizeof(VALID_DURATIONS) / sizeof(VALID_DURATIONS[0]);
 static const int INTERMEDIATE_DELAY_MS = 20;
 static const int MAX_NAME_LENGTH = 10;
 
-typedef struct {
-    int default_octave;
-    int default_duration;
-    int bpm;
-} Settings;
-
-bool is_valid_duration(int duration) {
-    for (size_t i = 0; i < VALID_DURATION_COUNT; i++) {
-        if (VALID_DURATIONS[i] == duration)
-            return true;
-    }
-
-    printf("Error: duration=%d but should be in [", duration);
-
-    for (int i = 0; i < VALID_DURATION_COUNT; i++) {
-        printf("%d%s", VALID_DURATIONS[i], (i < VALID_DURATION_COUNT - 1) ? ", " : "]\n");
-    }
-
-    return false;
-}
-
-bool is_valid_octave(int octave) {
-    if (!(MIN_OCTAVE <= octave && octave <= MAX_OCTAVE)) {
-        printf(
-            "Error: octave=%d but should be between (inclusive) %d and %d\n",
-            octave,
-            MIN_OCTAVE,
-            MAX_OCTAVE
-        );
-
-        return false;
-    }
-
-    return true;
-}
-
-char peek(const char *str, int *pos) {
-    hard_assert(str != NULL);
-    hard_assert(pos != NULL);
-
-    while (str[*pos] == ' ') {
-        (*pos)++;
-    }
-
-    return str[(*pos)];
-}
-
-void advance(const char *str, int *pos) {
-    hard_assert(str != NULL);
-    hard_assert(pos != NULL);
-
-    if (peek(str, pos) != '\0') (*pos)++;
-}
-
-void advance_number(const char *str, int *pos) {
-    hard_assert(str != NULL);
-    hard_assert(pos != NULL);
-
-    for (char c = peek(str, pos); c != '\0' && '0' <= c && c <= '9'; c = peek(str, pos)) {
-        advance(str, pos);
-    };
-}
-
-bool parse_control_pair(const char *str, int *pos, Settings *settings) {
-    hard_assert(str != NULL);
-    hard_assert(pos != NULL);
-    hard_assert(settings != NULL);
-
-    char c = peek(str, pos);
-
-    if (c == '\0') {
-        printf("Error: expected a control pair but got the end of the file\n");
-
-        return false;
-    }
-
-    advance(str, pos);
-
-    if (peek(str, pos) == '=') {
-        advance(str, pos);
-    }
-
-    switch (c) {
-        case 'o':
-            int octave = atoi(&str[*pos]);
-
-            if (!is_valid_octave(octave)) {
-                return false;
-            }
-
-            settings->default_octave = octave;
-
-            break;
-        case 'd':
-            int duration = atoi(&str[*pos]);
-
-            if (!is_valid_duration(duration)) {
-                return false;
-            }
-
-            settings->default_duration = duration;
-
-            break;
-        case 'b':
-            int bpm = atoi(&str[*pos]);
-
-            if (bpm <= 0) {
-                printf("Error: BPM should be larger than 0\n");
-
-                return false;
-            }
-
-            settings->bpm = bpm;
-
-            break;
-    }
-
-    int pos_before = *pos;
-
-    advance_number(str, pos);
-
-    if (*pos == pos_before) {
-        printf("Error: expected a numerical value in a control pair\n");
-
-        return false;
-    }
-
-    return true;
-}
-
 void run() {
-    stdio_init_all();
-    gpio_set_function(BUZZER_PIN, GPIO_FUNC_PWM);
-
     char song[] = "smwwd1:d=4,o=5,b=125:A,8F.,16C,16D,16F,16P,F,16D,16C,16P,16F,16P,16F,16P,8C6,8A.,G,16C,A,8F.,16C,16D,16F,16P,F,16D,16C,16P,16F,16P,16A#,16A,16G,2F,16P,8A.,8F.,8C,8A.,F,16G#,16F,16C,16P,8G#.,2G,8A.,8F.,8C,8A.,F,16G#,16F,8C,2C6,A,8F.,16C,16D,16F,16P,F,16D,16C,16P,16F,16P,16F,16P,8C6,8A.,G,16C,A,8F.,16C,16D,16F,16P,F,16D,16C,16P,16F,16P,16A#,16A,16G,2F";
 
     int pos = 0;
@@ -321,6 +185,8 @@ void run() {
 
 int main()
 {
+    bsp_init();
+
     run();
 
     while (true) {
