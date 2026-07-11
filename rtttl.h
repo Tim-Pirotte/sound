@@ -7,15 +7,15 @@ typedef struct {
 } Note;
 
 typedef struct {
-    int default_octave;
-    int default_duration;
-    int bpm;
+    uint8_t  default_octave;
+    uint8_t  default_duration;
+    uint16_t bpm;
 } Settings;
 
 typedef struct {
     const char *song;
-    int pos;
-    Settings settings;
+    size_t      pos;
+    Settings    settings;
 } RTTTLParser;
 
 bool init_parser(RTTTLParser *parser, const char *song);
@@ -25,8 +25,8 @@ char peek(RTTTLParser *parser);
 void advance(RTTTLParser *parser);
 void advance_number(RTTTLParser *parser);
 
-bool is_valid_duration(int duration);
-bool is_valid_octave(int octave);
+bool is_valid_duration(uint8_t duration);
+bool is_valid_octave(uint8_t octave);
 
 bool parse_control_pair(RTTTLParser *parser);
 

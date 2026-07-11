@@ -5,22 +5,22 @@
 #include "rtttl.h"
 #include "frequency_lut.h"
 
-static const int DEFAULT_OCTAVE = 6;
-static const int DEFAULT_DURATION = 4;
-static const int DEFAULT_BPM = 63;
+static const uint8_t  DEFAULT_OCTAVE = 6;
+static const uint8_t  DEFAULT_DURATION = 4;
+static const uint16_t DEFAULT_BPM = 63;
 
-static const int MAX_NAME_LENGTH = 10;
+static const uint8_t MAX_NAME_LENGTH = 10;
 
-static const int MILLISECONDS_PER_MINUTE = 60 * 1000;
-static const int QUARTER_NOTES_PER_WHOLE_NOTE = 4;
+static const uint32_t MILLISECONDS_PER_MINUTE = 60 * 1000;
+static const uint32_t QUARTER_NOTES_PER_WHOLE_NOTE = 4;
 
 static const float DOTTED_NOTE_MULTIPLIER = 1.5f;
 
-static const int VALID_DURATIONS[] = {1, 2, 4, 8, 16, 32};
-static const int VALID_DURATION_COUNT = sizeof(VALID_DURATIONS) / sizeof(VALID_DURATIONS[0]);
+static const uint8_t VALID_DURATIONS[] = {1, 2, 4, 8, 16, 32};
+static const size_t VALID_DURATION_COUNT = sizeof(VALID_DURATIONS) / sizeof(VALID_DURATIONS[0]);
 
-static const int MIN_OCTAVE = 4;
-static const int MAX_OCTAVE = 7;
+static const uint8_t MIN_OCTAVE = 4;
+static const uint8_t MAX_OCTAVE = 7;
 
 bool init_parser(RTTTLParser *parser, const char *song) {
     parser->song = song;
@@ -85,7 +85,8 @@ bool init_parser(RTTTLParser *parser, const char *song) {
 bool get_next_note(RTTTLParser *parser, Note *out) {
     if (peek(parser) == '\0') return false;
 
-    int duration = atoi(&parser->song[parser->pos]);
+    // TODO what if the number is larger?
+    uint8_t duration = atoi(&parser->song[parser->pos]);
     duration = duration ? duration : parser->settings.default_duration;
 
     if (!is_valid_duration(duration)) {
@@ -94,7 +95,7 @@ bool get_next_note(RTTTLParser *parser, Note *out) {
 
     advance_number(parser);
 
-    int  note = P;
+    Tone note = P;
     bool can_have_sharp = false;
 
     switch (peek(parser)) {
@@ -164,7 +165,7 @@ bool get_next_note(RTTTLParser *parser, Note *out) {
         duration_ms *= DOTTED_NOTE_MULTIPLIER;
     }
 
-    int octave = atoi(&parser->song[parser->pos]);
+    uint8_t octave = atoi(&parser->song[parser->pos]);
     octave = octave ? octave : parser->settings.default_octave;
 
     if (!is_valid_octave(octave)) {
@@ -218,7 +219,7 @@ void advance_number(RTTTLParser *parser) {
     };
 }
 
-bool is_valid_duration(int duration) {
+bool is_valid_duration(uint8_t duration) {
     for (size_t i = 0; i < VALID_DURATION_COUNT; i++) {
         if (VALID_DURATIONS[i] == duration)
             return true;
@@ -226,14 +227,14 @@ bool is_valid_duration(int duration) {
 
     printf("Error: duration=%d but should be in [", duration);
 
-    for (int i = 0; i < VALID_DURATION_COUNT; i++) {
+    for (size_t i = 0; i < VALID_DURATION_COUNT; i++) {
         printf("%d%s", VALID_DURATIONS[i], (i < VALID_DURATION_COUNT - 1) ? ", " : "]\n");
     }
 
     return false;
 }
 
-bool is_valid_octave(int octave) {
+bool is_valid_octave(uint8_t octave) {
     if (!(MIN_OCTAVE <= octave && octave <= MAX_OCTAVE)) {
         printf(
             "Error: octave=%d but should be between (inclusive) %d and %d\n",
@@ -268,7 +269,8 @@ bool parse_control_pair(RTTTLParser *parser) {
 
     switch (c) {
         case 'o':
-            int octave = atoi(&parser->song[parser->pos]);
+            // TODO what if it is larger?
+            uint8_t octave = atoi(&parser->song[parser->pos]);
 
             if (!is_valid_octave(octave)) {
                 return false;
@@ -278,7 +280,7 @@ bool parse_control_pair(RTTTLParser *parser) {
 
             break;
         case 'd':
-            int duration = atoi(&parser->song[parser->pos]);
+            uint8_t duration = atoi(&parser->song[parser->pos]);
 
             if (!is_valid_duration(duration)) {
                 return false;
@@ -288,7 +290,7 @@ bool parse_control_pair(RTTTLParser *parser) {
 
             break;
         case 'b':
-            int bpm = atoi(&parser->song[parser->pos]);
+            uint16_t bpm = atoi(&parser->song[parser->pos]);
 
             if (bpm <= 0) {
                 printf("Error: BPM should be larger than 0\n");
@@ -301,7 +303,7 @@ bool parse_control_pair(RTTTLParser *parser) {
             break;
     }
 
-    int pos_before = parser->pos;
+    size_t pos_before = parser->pos;
 
     advance_number(parser);
 
