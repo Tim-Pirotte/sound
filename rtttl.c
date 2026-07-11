@@ -1,6 +1,7 @@
 #include "pico/stdlib.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #include "rtttl.h"
 #include "frequency_lut.h"
@@ -81,115 +82,129 @@ bool init_parser(RTTTLParser *parser, const char *song) {
     return true;
 }
 
-// TODO keep advancing as long as there are control sequences
 bool get_next_note(RTTTLParser *parser, Note *out) {
-    if (peek(parser) == '\0') return false;
+    // We keep going until we found a note or the end has been reached
+    // <tone-command> := <note> | <control-pair>
+    while (true) {
+        if (peek(parser) == '\0') return false;
 
-    // TODO what if the number is larger?
-    uint8_t duration = atoi(&parser->song[parser->pos]);
-    duration = duration ? duration : parser->settings.default_duration;
+        // TODO what if this is a control sequence
+        uint8_t duration;
 
-    if (!is_valid_duration(duration)) {
-        return false;
-    }
+        if (!parse_u8(&parser->song[parser->pos], &duration)) {
+            return false;
+        }
 
-    advance_number(parser);
+        duration = duration ? duration : parser->settings.default_duration;
 
-    Tone note = P;
-    bool can_have_sharp = false;
+        if (!is_valid_duration(duration)) {
+            return false;
+        }
 
-    switch (peek(parser)) {
-        case 'A':
-            note = A;
-            can_have_sharp = true;
+        advance_number(parser);
 
-            break;
-        case 'B':
-            note = B;
+        Tone note = P;
+        bool can_have_sharp = false;
 
-            break;
-        case 'C':
-            note = C;
-            can_have_sharp = true;
+        switch (peek(parser)) {
+            case 'A':
+                note = A;
+                can_have_sharp = true;
 
-            break;
-        case 'D':
-            note = D;
-            can_have_sharp = true;
+                break;
+            case 'B':
+                note = B;
 
-            break;
-        case 'E':
-            note = E;
+                break;
+            case 'C':
+                note = C;
+                can_have_sharp = true;
 
-            break;
-        case 'F':
-            note = F;
-            can_have_sharp = true;
+                break;
+            case 'D':
+                note = D;
+                can_have_sharp = true;
 
-            break;
-        case 'G':
-            note = G;
-            can_have_sharp = true;
+                break;
+            case 'E':
+                note = E;
 
-            break;
-        case 'P':
-            note = P;
+                break;
+            case 'F':
+                note = F;
+                can_have_sharp = true;
 
-            break;
-        default:
-            bool ok = parse_control_pair(parser);
+                break;
+            case 'G':
+                note = G;
+                can_have_sharp = true;
 
-            if (!ok) {
-                return false;
-            }
-    }
+                break;
+            case 'P':
+                note = P;
 
-    // TODO shouldn't this only happen when it isnt a control pair?
-    advance(parser);
+                break;
+            default:
+                bool ok = parse_control_pair(parser);
 
-    if (can_have_sharp && peek(parser) == '#') {
+                if (!ok) {
+                    return false;
+                } else {
+                    continue;
+                }
+        }
+
         advance(parser);
 
-        note++;
+        if (can_have_sharp && peek(parser) == '#') {
+            advance(parser);
+
+            note++;
+        }
+
+        hard_assert(parser->settings.bpm != 0);
+        hard_assert(duration != 0);
+
+        float ms_per_note = MILLISECONDS_PER_MINUTE * QUARTER_NOTES_PER_WHOLE_NOTE / parser->settings.bpm;
+        float duration_ms = ms_per_note / duration;
+
+        if (peek(parser) == '.') {
+            advance(parser);
+
+            duration_ms *= DOTTED_NOTE_MULTIPLIER;
+        }
+
+        uint8_t octave;
+
+        if (!parse_u8(&parser->song[parser->pos], &octave)) {
+            return false;
+        }
+
+        octave = octave ? octave : parser->settings.default_octave;
+
+        if (!is_valid_octave(octave)) {
+            return false;
+        }
+
+        advance_number(parser);
+
+        char c = peek(parser);
+
+        if (c == ',') {
+            advance(parser);
+        } else if (c != '\0') {
+            printf("Error: tone commands should contain ',' between them\n");
+
+            return false;
+        }
+
+        float frequency = FREQUENCY_LUT[octave * OCTAVE_SIZE + note];
+
+        out->frequency_hz = frequency;
+        out->duration_ms = duration_ms;
+
+        return true;
     }
-
-    hard_assert(parser->settings.bpm != 0);
-    hard_assert(duration != 0);
-
-    float ms_per_note = MILLISECONDS_PER_MINUTE * QUARTER_NOTES_PER_WHOLE_NOTE / parser->settings.bpm;
-    float duration_ms = ms_per_note / duration;
-
-    if (peek(parser) == '.') {
-        advance(parser);
-
-        duration_ms *= DOTTED_NOTE_MULTIPLIER;
-    }
-
-    uint8_t octave = atoi(&parser->song[parser->pos]);
-    octave = octave ? octave : parser->settings.default_octave;
-
-    if (!is_valid_octave(octave)) {
-        return false;
-    }
-
-    advance_number(parser);
-
-    char c = peek(parser);
-
-    if (c == ',') {
-        advance(parser);
-    } else if (c != '\0') {
-        printf("Error: tone commands should contain ',' between them\n");
-
-        return false;
-    }
-
-    float frequency = FREQUENCY_LUT[octave * OCTAVE_SIZE + note];
-
-    out->frequency_hz = frequency;
-    out->duration_ms = duration_ms;
-
-    return true;
 }
 
 char peek(RTTTLParser *parser) {
@@ -269,8 +284,11 @@ bool parse_control_pair(RTTTLParser *parser) {
 
     switch (c) {
         case 'o':
-            // TODO what if it is larger?
-            uint8_t octave = atoi(&parser->song[parser->pos]);
+            uint8_t octave;
+
+            if (!parse_u8(&parser->song[parser->pos], &octave)) {
+                return false;
+            }
 
             if (!is_valid_octave(octave)) {
                 return false;
@@ -280,7 +298,11 @@ bool parse_control_pair(RTTTLParser *parser) {
 
             break;
         case 'd':
-            uint8_t duration = atoi(&parser->song[parser->pos]);
+            uint8_t duration;
+
+            if (!parse_u8(&parser->song[parser->pos], &duration)) {
+                return false;
+            }
 
             if (!is_valid_duration(duration)) {
                 return false;
@@ -290,9 +312,13 @@ bool parse_control_pair(RTTTLParser *parser) {
 
             break;
         case 'b':
-            uint16_t bpm = atoi(&parser->song[parser->pos]);
+            uint16_t bpm;
 
-            if (bpm <= 0) {
+            if (!parse_u16(&parser->song[parser->pos], &bpm)) {
+                return false;
+            }
+
+            if (bpm == 0) {
                 printf("Error: BPM should be larger than 0\n");
 
                 return false;
@@ -312,6 +338,44 @@ bool parse_control_pair(RTTTLParser *parser) {
 
         return false;
     }
+
+    return true;
+}
+
+bool parse_u8(const char *str, uint8_t *result) {
+    if (*str == '-') return false;
+
+    errno = 0;
+
+    char *end;
+    unsigned long value = strtoul(str, &end, 10);
+
+    if (errno == ERANGE || value > UINT8_MAX) {
+        printf("Error: number exceeds u8 capacity");
+
+        return false;
+    }
+
+    *result = (uint8_t)value;
+
+    return true;
+}
+
+bool parse_u16(const char *str, uint16_t *result) {
+    if (*str == '-') return false;
+
+    errno = 0;
+
+    char *end;
+    unsigned long value = strtoul(str, &end, 10);
+
+    if (errno == ERANGE || value > UINT16_MAX) {
+        printf("Error: number exceeds u16 capacity");
+
+        return false;
+    }
+
+    *result = (uint16_t)value;
 
     return true;
 }

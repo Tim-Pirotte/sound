@@ -30,4 +30,7 @@ bool is_valid_octave(uint8_t octave);
 
 bool parse_control_pair(RTTTLParser *parser);
 
+bool parse_u8(const char *str, uint8_t *result);
+bool parse_u16(const char *str, uint16_t *result);
+
 #endif
