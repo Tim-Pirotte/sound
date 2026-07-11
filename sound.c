@@ -34,6 +34,8 @@ int main()
 {
     bsp_init();
 
+    sleep_ms(60000);
+
     run();
 
     while (true) {

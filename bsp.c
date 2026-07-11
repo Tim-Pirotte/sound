@@ -16,6 +16,7 @@ void __attribute__((noreturn)) __assert_func(const char *file, int line, const c
 void bsp_init() {
     stdio_init_all();
     gpio_set_function(BUZZER_PIN, GPIO_FUNC_PWM);
+    gpio_set_function(27, GPIO_FUNC_PWM);
 }
 
 void play_tone(float frequency) {
@@ -38,5 +39,21 @@ void play_tone(float frequency) {
     pwm_set_clkdiv(slice_num, div);
     pwm_set_wrap(slice_num, wrap);
     pwm_set_gpio_level(BUZZER_PIN, wrap / 2);
+    pwm_set_enabled(slice_num, true);
+
+
+
+
+    slice_num = pwm_gpio_to_slice_num(27);
+
+    if (frequency == 0) {
+        pwm_set_gpio_level(27, 0);
+
+        return;
+    }
+
+    pwm_set_clkdiv(slice_num, div);
+    pwm_set_wrap(slice_num, wrap);
+    pwm_set_gpio_level(27, wrap / 2);
     pwm_set_enabled(slice_num, true);
 }
