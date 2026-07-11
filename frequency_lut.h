@@ -17,7 +17,7 @@ typedef enum {
     G_SHARP,
 
     NOTE_COUNT
-} Note;
+} Tone;
 
 #define OCTAVE_SIZE NOTE_COUNT
 #define OCTAVE_COUNT 10

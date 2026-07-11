@@ -19,16 +19,15 @@ typedef struct {
 } RTTTLParser;
 
 bool init_parser(RTTTLParser *parser, const char *song);
+bool get_next_note(RTTTLParser *parser, Note *out);
 
-char peek(const char *str, int *pos);
-void advance(const char *str, int *pos);
-void advance_number(const char *str, int *pos);
+char peek(RTTTLParser *parser);
+void advance(RTTTLParser *parser);
+void advance_number(RTTTLParser *parser);
 
 bool is_valid_duration(int duration);
 bool is_valid_octave(int octave);
 
-bool parse_control_pair(const char *str, int *pos, Settings *settings);
-
-bool get_next_note(RTTTLParser *parser, Note *out);
+bool parse_control_pair(RTTTLParser *parser);
 
 #endif

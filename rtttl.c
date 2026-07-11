@@ -1,6 +1,20 @@
 #include "pico/stdlib.h"
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "rtttl.h"
+#include "frequency_lut.h"
+
+static const int DEFAULT_OCTAVE = 6;
+static const int DEFAULT_DURATION = 4;
+static const int DEFAULT_BPM = 63;
+
+static const int MAX_NAME_LENGTH = 10;
+
+static const int MILLISECONDS_PER_MINUTE = 60 * 1000;
+static const int QUARTER_NOTES_PER_WHOLE_NOTE = 4;
+
+static const float DOTTED_NOTE_MULTIPLIER = 1.5f;
 
 static const int VALID_DURATIONS[] = {1, 2, 4, 8, 16, 32};
 static const int VALID_DURATION_COUNT = sizeof(VALID_DURATIONS) / sizeof(VALID_DURATIONS[0]);
@@ -9,33 +23,198 @@ static const int MIN_OCTAVE = 4;
 static const int MAX_OCTAVE = 7;
 
 bool init_parser(RTTTLParser *parser, const char *song) {
+    parser->song = song;
+    parser->pos = 0;
+    parser->settings = (Settings){DEFAULT_OCTAVE, DEFAULT_DURATION, DEFAULT_BPM};
 
-}
+    printf("Playing: ");
 
-char peek(const char *str, int *pos) {
-    hard_assert(str != NULL);
-    hard_assert(pos != NULL);
+    for (char c = peek(parser); c != ':'; c = peek(parser)) {
+        if (c == '\0') {
+            printf("\nError: name should be followed by ':'\n");
 
-    while (str[*pos] == ' ') {
-        (*pos)++;
+            return false;
+        }
+
+        if (parser->pos + 1 > MAX_NAME_LENGTH) {
+            printf("\nError: name cannot be longer than %d characters\n", MAX_NAME_LENGTH);
+
+            return false;
+        }
+
+        putchar(c);
+        advance(parser);
     }
 
-    return str[(*pos)];
+    putchar('\n');
+
+    hard_assert(peek(parser) == ':');
+    advance(parser);
+
+    for (char c = peek(parser); c != ':'; c = peek(parser)) {
+        if (c == '\0') {
+            printf("Error: expected the control section to end with ':'\n");
+
+            return false;
+        }
+
+        bool ok = parse_control_pair(parser);
+
+        if (!ok) {
+            return false;
+        }
+
+        c = peek(parser);
+
+        if (c == ',') {
+            advance(parser);
+        } else if (c != ':') {
+            printf("Error: control pairs should contain ',' between them\n");
+
+            return false;
+        }
+    };
+
+    hard_assert(peek(parser) == ':');
+    advance(parser);
+
+    return true;
 }
 
-void advance(const char *str, int *pos) {
-    hard_assert(str != NULL);
-    hard_assert(pos != NULL);
+// TODO keep advancing as long as there are control sequences
+bool get_next_note(RTTTLParser *parser, Note *out) {
+    if (peek(parser) == '\0') return false;
 
-    if (peek(str, pos) != '\0') (*pos)++;
+    int duration = atoi(&parser->song[parser->pos]);
+    duration = duration ? duration : parser->settings.default_duration;
+
+    if (!is_valid_duration(duration)) {
+        return false;
+    }
+
+    advance_number(parser);
+
+    int  note = P;
+    bool can_have_sharp = false;
+
+    switch (peek(parser)) {
+        case 'A':
+            note = A;
+            can_have_sharp = true;
+
+            break;
+        case 'B':
+            note = B;
+
+            break;
+        case 'C':
+            note = C;
+            can_have_sharp = true;
+
+            break;
+        case 'D':
+            note = D;
+            can_have_sharp = true;
+
+            break;
+        case 'E':
+            note = E;
+
+            break;
+        case 'F':
+            note = F;
+            can_have_sharp = true;
+
+            break;
+        case 'G':
+            note = G;
+            can_have_sharp = true;
+
+            break;
+        case 'P':
+            note = P;
+
+            break;
+        default:
+            bool ok = parse_control_pair(parser);
+
+            if (!ok) {
+                return false;
+            }
+    }
+
+    // TODO shouldn't this only happen when it isnt a control pair?
+    advance(parser);
+
+    if (can_have_sharp && peek(parser) == '#') {
+        advance(parser);
+
+        note++;
+    }
+
+    hard_assert(parser->settings.bpm != 0);
+    hard_assert(duration != 0);
+
+    float ms_per_note = MILLISECONDS_PER_MINUTE * QUARTER_NOTES_PER_WHOLE_NOTE / parser->settings.bpm;
+    float duration_ms = ms_per_note / duration;
+
+    if (peek(parser) == '.') {
+        advance(parser);
+
+        duration_ms *= DOTTED_NOTE_MULTIPLIER;
+    }
+
+    int octave = atoi(&parser->song[parser->pos]);
+    octave = octave ? octave : parser->settings.default_octave;
+
+    if (!is_valid_octave(octave)) {
+        return false;
+    }
+
+    advance_number(parser);
+
+    char c = peek(parser);
+
+    if (c == ',') {
+        advance(parser);
+    } else if (c != '\0') {
+        printf("Error: tone commands should contain ',' between them\n");
+
+        return false;
+    }
+
+    float frequency = FREQUENCY_LUT[octave * OCTAVE_SIZE + note];
+
+    out->frequency_hz = frequency;
+    out->duration_ms = duration_ms;
+
+    return true;
 }
 
-void advance_number(const char *str, int *pos) {
-    hard_assert(str != NULL);
-    hard_assert(pos != NULL);
+char peek(RTTTLParser *parser) {
+    hard_assert(parser != NULL);
+    hard_assert(parser->song != NULL);
 
-    for (char c = peek(str, pos); c != '\0' && '0' <= c && c <= '9'; c = peek(str, pos)) {
-        advance(str, pos);
+    while (parser->song[parser->pos] == ' ') {
+        parser->pos++;
+    }
+
+    return parser->song[parser->pos];
+}
+
+void advance(RTTTLParser *parser) {
+    hard_assert(parser != NULL);
+    hard_assert(parser->song != NULL);
+
+    if (peek(parser) != '\0') parser->pos++;
+}
+
+void advance_number(RTTTLParser *parser) {
+    hard_assert(parser != NULL);
+    hard_assert(parser->song != NULL);
+
+    for (char c = peek(parser); c != '\0' && '0' <= c && c <= '9'; c = peek(parser)) {
+        advance(parser);
     };
 }
 
@@ -69,12 +248,11 @@ bool is_valid_octave(int octave) {
     return true;
 }
 
-bool parse_control_pair(const char *str, int *pos, Settings *settings) {
-    hard_assert(str != NULL);
-    hard_assert(pos != NULL);
-    hard_assert(settings != NULL);
+bool parse_control_pair(RTTTLParser *parser) {
+    hard_assert(parser != NULL);
+    hard_assert(parser->song != NULL);
 
-    char c = peek(str, pos);
+    char c = peek(parser);
 
     if (c == '\0') {
         printf("Error: expected a control pair but got the end of the file\n");
@@ -82,35 +260,35 @@ bool parse_control_pair(const char *str, int *pos, Settings *settings) {
         return false;
     }
 
-    advance(str, pos);
+    advance(parser);
 
-    if (peek(str, pos) == '=') {
-        advance(str, pos);
+    if (peek(parser) == '=') {
+        advance(parser);
     }
 
     switch (c) {
         case 'o':
-            int octave = atoi(&str[*pos]);
+            int octave = atoi(&parser->song[parser->pos]);
 
             if (!is_valid_octave(octave)) {
                 return false;
             }
 
-            settings->default_octave = octave;
+            parser->settings.default_octave = octave;
 
             break;
         case 'd':
-            int duration = atoi(&str[*pos]);
+            int duration = atoi(&parser->song[parser->pos]);
 
             if (!is_valid_duration(duration)) {
                 return false;
             }
 
-            settings->default_duration = duration;
+            parser->settings.default_duration = duration;
 
             break;
         case 'b':
-            int bpm = atoi(&str[*pos]);
+            int bpm = atoi(&parser->song[parser->pos]);
 
             if (bpm <= 0) {
                 printf("Error: BPM should be larger than 0\n");
@@ -118,24 +296,20 @@ bool parse_control_pair(const char *str, int *pos, Settings *settings) {
                 return false;
             }
 
-            settings->bpm = bpm;
+            parser->settings.bpm = bpm;
 
             break;
     }
 
-    int pos_before = *pos;
+    int pos_before = parser->pos;
 
-    advance_number(str, pos);
+    advance_number(parser);
 
-    if (*pos == pos_before) {
+    if (parser->pos == pos_before) {
         printf("Error: expected a numerical value in a control pair\n");
 
         return false;
     }
 
     return true;
-}
-
-bool get_next_note(RTTTLParser *parser, Note *out) {
-
 }
