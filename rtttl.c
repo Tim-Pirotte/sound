@@ -88,7 +88,6 @@ bool get_next_note(RTTTLParser *parser, Note *out) {
     while (true) {
         if (peek(parser) == '\0') return false;
 
-        // TODO what if this is a control sequence
         uint8_t duration;
 
         if (!parse_u8(&parser->song[parser->pos], &duration)) {
@@ -97,10 +96,11 @@ bool get_next_note(RTTTLParser *parser, Note *out) {
 
         duration = duration ? duration : parser->settings.default_duration;
 
-        if (!is_valid_duration(duration)) {
-            return false;
-        }
+        // if (!is_valid_duration(duration)) {
+        //     return false;
+        //}
 
+        size_t pos_before = parser->pos;
         advance_number(parser);
 
         Tone note = P;
@@ -145,6 +145,12 @@ bool get_next_note(RTTTLParser *parser, Note *out) {
 
                 break;
             default:
+                if (parser->pos != pos_before) {
+                    printf("Error: a control pair cannot start with a number\n");
+
+                    return false;
+                }
+
                 bool ok = parse_control_pair(parser);
 
                 if (!ok) {
@@ -225,6 +231,7 @@ void advance(RTTTLParser *parser) {
     if (peek(parser) != '\0') parser->pos++;
 }
 
+// TODO We can use the pointer from parse int instead
 void advance_number(RTTTLParser *parser) {
     hard_assert(parser != NULL);
     hard_assert(parser->song != NULL);
