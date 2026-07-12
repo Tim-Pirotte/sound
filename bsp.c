@@ -8,13 +8,11 @@
 #include "bsp.h"
 
 #define BUZZER_PIN 28
-#define UART_ID uart0
 
 #define UART_READ_BUFFER_SIZE 2048
 #define WAIT_FOR_INPUT_SLEEP_MS 5
 
 static char uart_read_buf[UART_READ_BUFFER_SIZE];
-// TODO do these need to be volatile?
 static volatile size_t pos = 0;
 static volatile bool ready = false;
 static volatile bool command_in_buffer_err_shown = false;
@@ -30,16 +28,10 @@ void bsp_init(void) {
     gpio_set_function(BUZZER_PIN, GPIO_FUNC_PWM);
     gpio_set_function(27, GPIO_FUNC_PWM);
 
-    // TODO do we want this?
-    uart_set_hw_flow(UART_ID, false, false);
-
-    uart_set_fifo_enabled(UART_ID, false);
-
-    int UART_IRQ = UART_ID == uart0 ? UART0_IRQ : UART1_IRQ;
-
-    irq_set_exclusive_handler(UART_IRQ, handle_uart_read);
-    irq_set_enabled(UART_IRQ, true);
-    uart_set_irq_enables(UART_ID, true, false);
+    uart_set_fifo_enabled(uart0, false);
+    irq_set_exclusive_handler(UART0_IRQ, handle_uart_read);
+    irq_set_enabled(UART0_IRQ, true);
+    uart_set_irq_enables(uart0, true, false);
 }
 
 void play_tone(float frequency) {
@@ -82,32 +74,32 @@ void play_tone(float frequency) {
 }
 
 void handle_uart_read(void) {
-    while (uart_is_readable(UART_ID)) {
-        if (ready && !command_in_buffer_err_shown) {
-            printf(
-                "Error: there is still an unprocessed command waiting to be handled."
-                " Input will be ignored."
-            );
+    // This is problematic since it can go from ready=false to ready=true
+    // in the middle of sending a command
+    if (ready && !command_in_buffer_err_shown) {
+        printf(
+            "Error: there is still an unprocessed command waiting to be handled."
+            " Input will be ignored."
+        );
 
-            command_in_buffer_err_shown = true;
+        command_in_buffer_err_shown = true;
+
+        return;
+    }
+
+    uint8_t c = uart_getc(uart0);
+
+    if (c == '\n' || c == '\r') {
+        if (pos != 0) {
+            uart_read_buf[pos] = '\0';
+            ready = true;
 
             return;
         }
-
-        uint8_t c = uart_getc(UART_ID);
-
-        if (c == '\n' || c == '\r') {
-            if (pos != 0) {
-                uart_read_buf[pos] = '\0';
-                ready = true;
-
-                return;
-            }
-        } else if (pos < UART_READ_BUFFER_SIZE - 1) {
-            uart_read_buf[pos++] = c;
-        } else {
-            printf("Error: unread input exceeds uart read buffer size of %d", UART_READ_BUFFER_SIZE);
-        }
+    } else if (pos < UART_READ_BUFFER_SIZE - 1) {
+        uart_read_buf[pos++] = c;
+    } else {
+        printf("Error: unread input exceeds uart read buffer size of %d", UART_READ_BUFFER_SIZE);
     }
 }
 
