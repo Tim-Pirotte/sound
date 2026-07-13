@@ -5,6 +5,6 @@ void __attribute__((noreturn)) __assert_func(const char *file, int line, const c
 void bsp_init(void);
 void play_tone(float frequency);
 void handle_uart_read(void);
-bool read_input(char *buf, size_t len);
+bool read_line(char *buf, size_t len);
 
 #endif

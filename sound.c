@@ -18,7 +18,7 @@ void execute_command() {
 
     static char command[COMMAND_BUFFER_SIZE];
 
-    if (!read_input(command, COMMAND_BUFFER_SIZE)) {
+    if (!read_line(command, COMMAND_BUFFER_SIZE)) {
         printf("Error: command length exceeds buffer size of %d", COMMAND_BUFFER_SIZE);
 
         return;

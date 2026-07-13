@@ -30,6 +30,7 @@ bool init_parser(RTTTLParser *parser, const char *song) {
 
     printf("Playing: ");
 
+    // TODO retain ' '
     for (char c = peek(parser); c != ':'; c = peek(parser)) {
         if (c == '\0') {
             printf("\nError: name should be followed by ':'\n");
