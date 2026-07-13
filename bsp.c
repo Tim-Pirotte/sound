@@ -15,12 +15,16 @@
 typedef enum {
     READING,
     READY,
-    READY_OVERFLOWING,
-    SKIPPING_OVERFLOWED_LINE
+} line_state_t;
+
+typedef enum {
+    CLEAR,
+    OVERFLOWING
 } buffer_state_t;
 
 static char uart_read_buf[UART_READ_BUFFER_SIZE];
-static volatile buffer_state_t buffer_state = READING;
+static volatile line_state_t line_state = READING;
+static volatile buffer_state_t buffer_state = CLEAR;
 static volatile size_t pos = 0;
 
 void __attribute__((noreturn)) __assert_func(const char *file, int line, const char *func, const char *failedexpr) {
@@ -79,79 +83,63 @@ void play_tone(float frequency) {
     pwm_set_enabled(slice_num, true);
 }
 
-void transition_to_reading(void) {
-    uint32_t irq_state = save_and_disable_interrupts();
-
-    pos = 0;
-    buffer_state = READING;
-
-    restore_interrupts(irq_state);
-}
-
-void transition_to_ready(void) {
-    buffer_state = READY;
-}
-
-void transition_to_ready_overflowing(void) {
-    // TODO find a solution for showing the error without waiting on the end of command execution
-    // printf(
-    //     "Error: there is still an unprocessed command waiting to be handled."
-    //     " Input will be ignored."
-    // );
-
-    buffer_state = READY_OVERFLOWING;
-}
-
-void transition_to_skipping_overflowed_line(void) {
-    buffer_state = SKIPPING_OVERFLOWED_LINE;
-}
-
 void handle_uart_read(void) {
     uint8_t c = uart_getc(uart0);
     bool is_end_of_line = c == '\n' || c == '\r';
 
-    switch (buffer_state) {
+    switch (line_state) {
     case READING:
-        if (is_end_of_line) {
-            if (pos != 0) {
-                uart_read_buf[pos] = '\0';
-                transition_to_ready();
+        switch (buffer_state) {
+        case CLEAR:
+            if (is_end_of_line) {
+                if (pos != 0) {
+                    uart_read_buf[pos] = '\0';
+                    line_state = READY;
+                }
+
+                return;
             }
 
-            return;
+            if (pos + 1 >= UART_READ_BUFFER_SIZE) {
+                // TODO find a solution for showing the error without waiting on the end of command execution
+                // printf(
+                //     "Error: unread input exceeds uart read buffer size of %d."
+                //     " Command will be discarded",
+                //     UART_READ_BUFFER_SIZE
+                // );
+
+                buffer_state = OVERFLOWING;
+
+                return;
+            }
+
+            uart_read_buf[pos++] = c;
+
+            break;
+        case OVERFLOWING:
+            if (is_end_of_line) {
+                pos = 0;
+                buffer_state = CLEAR;
+            }
+
+            break;
         }
-
-        if (pos + 1 >= UART_READ_BUFFER_SIZE) {
-            // TODO find a solution for showing the error without waiting on the end of command execution
-            // printf(
-            //     "Error: unread input exceeds uart read buffer size of %d."
-            //     " Command will be discarded",
-            //     UART_READ_BUFFER_SIZE
-            // );
-
-            transition_to_skipping_overflowed_line();
-
-            return;
-        }
-
-        uart_read_buf[pos++] = c;
 
         break;
     case READY:
-        if (!is_end_of_line) {
-            transition_to_ready_overflowing();
-        }
+        switch (buffer_state) {
+        case CLEAR:
+            if (!is_end_of_line) {
+                buffer_state = OVERFLOWING;
+            }
 
-        break;
-    case READY_OVERFLOWING:
-        if (is_end_of_line) {
-            transition_to_ready();
-        }
+            break;
+        case OVERFLOWING:
+            if (is_end_of_line) {
+                buffer_state = CLEAR;
+            }
 
-        break;
-    case SKIPPING_OVERFLOWED_LINE:
-        if (is_end_of_line) {
-            transition_to_reading();
+            break;
         }
 
         break;
@@ -159,7 +147,7 @@ void handle_uart_read(void) {
 }
 
 bool read_line(char *buf, size_t len) {
-    while (buffer_state != READY && buffer_state != READY_OVERFLOWING) {
+    while (line_state != READY) {
         __wfi();
     }
 
@@ -169,21 +157,8 @@ bool read_line(char *buf, size_t len) {
 
     strcpy(buf, uart_read_buf);
 
-    // TODO This can probably be removed by using a separate state space for overflowing
-    uint32_t irq_state = save_and_disable_interrupts();
-
-    switch (buffer_state) {
-    case READY:
-        transition_to_reading();
-
-        break;
-    case READY_OVERFLOWING:
-        transition_to_skipping_overflowed_line();
-
-        break;
-    }
-
-    restore_interrupts(irq_state);
+    pos = 0;
+    line_state = READING;
 
     return true;
 }
