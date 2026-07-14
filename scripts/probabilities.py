@@ -1,20 +1,24 @@
 from collections import Counter
 
-def print_title_probabilities(songs: list[str]):
+def get_title_probabilities(songs: list[str]) -> Counter:
     counter = Counter()
 
     for song in songs:
         title = song.split(':')[0] + ':'
 
+        skip = False
+
         for char in title:
-            counter.update(char)
+            if ord(char) > 127:
+                skip = True
+                break
 
-    for count in sorted(counter.items(), key=lambda x: x[1], reverse=True):
-        print(count)
+        if not skip:
+            counter.update(title)
 
-    print(len(counter))
+    return counter
 
-def print_tone_command_probabilities(songs: list[str]):
+def get_command_probabilities(songs: list[str]) -> Counter:
     counter = Counter()
 
     for song in songs:
@@ -119,12 +123,14 @@ def print_tone_command_probabilities(songs: list[str]):
 
         counter.update(processed_commands)
 
-    for count in sorted(counter.items(), key=lambda x: x[1], reverse=True):
-        print(count)
-
-    print(len(counter))
+    return counter
 
 if __name__ == '__main__':
     with open('dataset.txt', 'r') as file:
-        # print_title_probabilities([line for line in file])
-        print_tone_command_probabilities([line for line in file])
+        probabilities = get_title_probabilities([line for line in file])
+        # probabilities = get_command_probabilities([line for line in file])
+
+        for count in sorted(probabilities.items(), key=lambda x: x[1], reverse=True):
+            print(count)
+
+        print(len(probabilities))
