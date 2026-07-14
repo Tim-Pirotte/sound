@@ -101,4 +101,4 @@ def build_title_tables(M: int):
         file.write(c)
 
 if __name__ == '__main__':
-    build_title_tables(256)
+    build_title_tables(4096)
