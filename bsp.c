@@ -83,6 +83,7 @@ void play_tone(float frequency) {
     pwm_set_enabled(slice_num, true);
 }
 
+// TODO buffer to ensure capture of all chars over 921600 Bd
 void handle_uart_read(void) {
     uint8_t c = uart_getc(uart0);
     bool is_end_of_line = c == '\n' || c == '\r';
@@ -102,6 +103,7 @@ void handle_uart_read(void) {
 
             if (pos + 1 >= UART_READ_BUFFER_SIZE) {
                 // TODO find a solution for showing the error without waiting on the end of command execution
+                // We can do this in an RTOS thread
                 // printf(
                 //     "Error: unread input exceeds uart read buffer size of %d."
                 //     " Command will be discarded",

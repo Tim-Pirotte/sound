@@ -1,3 +1,11 @@
+// This parses RTTTL according to this specification of RTTTL:
+// https://panuworld.net/nuukiaworld/download/nokix/rtttl.htm.
+// Note that this differs from the RTTTL format most songs actually use.
+// This format is case sensitive and uses uppercase for the notes
+// which is important since '=' is optional in a control pair.
+// If it were case insensitive then notes could be ambiguous with control pairs.
+// You could make it case insensitive by making '=' mandatory in control pairs.
+
 #include "pico/stdlib.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,8 +38,7 @@ bool init_parser(RTTTLParser *parser, const char *song) {
 
     printf("Playing: ");
 
-    // TODO retain ' '
-    for (char c = peek(parser); c != ':'; c = peek(parser)) {
+    for (char c = parser->song[parser->pos]; c != ':'; c = parser->song[parser->pos]) {
         if (c == '\0') {
             printf("\nError: name should be followed by ':'\n");
 
@@ -45,7 +52,8 @@ bool init_parser(RTTTLParser *parser, const char *song) {
         }
 
         putchar(c);
-        advance(parser);
+
+        parser->pos++;
     }
 
     putchar('\n');
@@ -97,9 +105,9 @@ bool get_next_note(RTTTLParser *parser, Note *out) {
 
         duration = duration ? duration : parser->settings.default_duration;
 
-        // if (!is_valid_duration(duration)) {
-        //     return false;
-        //}
+        if (!is_valid_duration(duration)) {
+            return false;
+        }
 
         size_t pos_before = parser->pos;
         advance_number(parser);
