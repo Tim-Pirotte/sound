@@ -2,3 +2,4 @@ build
 !.vscode/*
 data
 dataset.txt
+__pycache__

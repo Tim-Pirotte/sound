@@ -87,7 +87,7 @@ def build_title_tables(M: int):
 
     py += '}\n'
 
-    with open('titles_table.py', 'x') as file:
+    with open('scripts/titles_table.py', 'w') as file:
         file.write(py)
 
     c = f'const char TITLE_CHAR_TABLE[{M}] = {{\n'
@@ -97,8 +97,8 @@ def build_title_tables(M: int):
 
     c += "};\n"
 
-    with open('titles_table.c', 'x') as file:
+    with open('titles_table.c', 'w') as file:
         file.write(c)
 
 if __name__ == '__main__':
-    build_title_tables(4096)
+    build_title_tables(256)
