@@ -1,4 +1,4 @@
-rans_freq = {
+title_frequencies = {
     '\x00': (1, 0),
     '\x01': (1, 1),
     '\x02': (1, 2),

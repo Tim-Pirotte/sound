@@ -80,7 +80,7 @@ def build_title_tables(M: int):
         slot_to_symbol.extend([char] * f)
         cum_sum += f
 
-    py = 'rans_freq = {\n'
+    py = 'title_frequencies = {\n'
 
     for char, (f, c) in freq_rans.items():
         py += f'    {repr(char)}: ({f}, {c}),\n'

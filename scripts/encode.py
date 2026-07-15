@@ -1,7 +1,7 @@
 import math
 import importlib
 
-import generate_rANS_tables as g
+import generate_rans_tables as g
 import titles_table as t
 
 def get_state_width(L: int, b: int) -> int:
@@ -11,21 +11,15 @@ def get_state_width(L: int, b: int) -> int:
     return math.ceil(bits_needed / 8)
 
 def encode_title(title: str, freq: dict, M: int, L: int, b: int) -> bytes:
-    if L < M:
-        raise ValueError('L should be larger than or equal to M')
-
-    if len(title) < 1 or title[-1] != ':':
-        raise ValueError("The title should end on ':'")
-
-    if title.count(':') != 1:
-        raise ValueError("There cannot be another ':' in the title")
+    assert L >= M
+    assert len(title) >= 1 and title[-1] == ':'
+    assert title.count(':') == 1
 
     x = L
     stream = []
 
     for c in reversed(title):
-        if ord(c) > 127:
-            raise ValueError("Only ASCII characters are allowed")
+        assert ord(c) <= 127
 
         f, c = freq[c]
 
@@ -77,38 +71,50 @@ def decode_title(data: bytes, freq: dict, M: int, L: int, b: int) -> str:
 
     return ''.join(message)
 
-def search_best_M(values: list[int]):
-    best_M = values[0]
-    best_compression = 0
+def grid_search_M_and_L(M_values: list[int], L_factors: list[int]):
+    best_M = M_values[0]
+    best_L = L_factors[0]
+    best_compression = -float('inf')
 
-    for M in values:
+    for M in M_values:
         g.build_title_tables(M)
 
         global t
         t = importlib.reload(t)
 
-        compression = 0
-        song_count = 0
+        for k in L_factors:
+            compression = 0
+            song_count = 0
 
-        with open('dataset.txt', 'r') as file:
-            for song in file:
-                title = song.split(':')[0] + ':'
+            with open('dataset.txt', 'r') as file:
+                for song in file:
+                    title = song.split(':')[0] + ':'
 
-                try:
-                    encoded = encode_title(title, t.rans_freq, M, M, 256)
-                except ValueError:
-                    continue
+                    skip = False
 
-                song_count += 1
-                compression += (len(title) - len(encoded)) / len(title)
+                    for c in title:
+                        if  ord(c) > 127:
+                            skip = True
+                            break
 
-        print(f'Compression for M={M}: {compression / song_count * 100:.2f}%')
+                    if skip:
+                        continue
 
-        if compression / song_count > best_compression:
-            best_M = M
-            best_compression = compression / song_count
+                    encoded = encode_title(title, t.title_frequencies, M, M * k, 256)
 
-    print(f'Best M: {best_M} with {best_compression * 100:.2f}%')
+                    assert title == decode_title(encoded, t.title_frequencies, M, M * k, 256)
+
+                    song_count += 1
+                    compression += (len(title) - len(encoded)) / len(title)
+
+            print(f'Compression for M={M}, L={M * k}: {compression / song_count * 100:.2f}%')
+
+            if compression / song_count > best_compression:
+                best_M = M
+                best_L = M * k
+                best_compression = compression / song_count
+
+    print(f'Best M={best_M}, L={best_L} with {best_compression * 100:.2f}%')
 
 if __name__ == '__main__':
-    search_best_M([128, 256, 512, 1024, 2048, 4096, 8192, 16384])
+    grid_search_M_and_L([128, 256, 512, 1024, 2048, 4096, 8192, 16384], [1, 2, 4, 8, 16, 32])
