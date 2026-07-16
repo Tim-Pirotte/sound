@@ -9,7 +9,8 @@ class Settings:
         self.default_duration = 4
         self.bpm = 63
 
-def parse_tone_commands(commands: list[str], settings: Settings) -> list[int]:
+def parse_tone_commands(commands: list[str]) -> list[int]:
+    settings = Settings()
     parsed_commands = []
 
     for command in commands:
@@ -86,4 +87,4 @@ def parse_note(note: str, settings: Settings, parsed_commands: list[int]):
     parsed_commands.append(encoded_command)
 
 if __name__ == '__main__':
-    print(parse_tone_commands(['o=8', 'D', '5E', '32G#.7'], Settings()))
+    print(parse_tone_commands(['o=8', 'D', '5E', '32G#.7']))
