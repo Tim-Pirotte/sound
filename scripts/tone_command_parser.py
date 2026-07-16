@@ -1,0 +1,123 @@
+# Parses a series of tone commands and ignores errors
+
+from enum import Enum
+
+DURATIONS = [1, 2, 4, 8, 16, 32]
+
+class Settings:
+    def __init__(self) -> None:
+        self.default_octave = 6
+        self.default_duration = 4
+        self.bpm = 63
+
+class Tone(Enum):
+    P       = 0
+    A       = 1
+    A_SHARP = 2
+    B       = 3
+    C       = 4
+    C_SHARP = 5
+    D       = 6
+    D_SHARP = 7
+    E       = 8
+    F       = 9
+    F_SHARP = 10
+    G       = 11
+    G_SHARP = 12
+
+TONE_NAMES = {
+    Tone.P: 'p',
+    Tone.A: 'a',
+    Tone.A_SHARP: 'a#',
+    Tone.B: 'b',
+    Tone.C: 'c',
+    Tone.C_SHARP: 'c#',
+    Tone.D: 'd',
+    Tone.D_SHARP: 'd#',
+    Tone.E: 'e',
+    Tone.F: 'f',
+    Tone.F_SHARP: 'f#',
+    Tone.G: 'g',
+    Tone.G_SHARP: 'g#',
+}
+
+def parse_tone_commands(commands: list[str], settings: Settings) -> list[int]:
+    parsed_commands = []
+
+    for command in commands:
+        command = command.lower()
+
+        if '=' in command:
+            parse_control_pair(command, settings, parsed_commands)
+        else:
+            parse_note(command, settings, parsed_commands)
+
+    return parsed_commands
+
+def parse_control_pair(control_pair: str, settings: Settings, parsed_commands: list[int]):
+    name, value = control_pair.split('=')
+
+    try:
+        value = int(value)
+    except ValueError:
+        return
+
+    if name == 'o':
+        if 4 <= value <= 7:
+            settings.default_octave = value
+    elif name == 'd':
+        if value in DURATIONS:
+            settings.default_duration = value
+    elif name == 'b':
+        if 20 <= value <= 900:
+            settings.bpm = value
+            parsed_commands.append(1 + value - 20)
+
+def parse_note(note: str, settings: Settings, parsed_commands: list[int]):
+    i = 0
+
+    duration = 0
+
+    while i < len(note) and note[i].isdigit():
+        duration = duration * 10 + int(note[i])
+        i += 1
+
+    if duration not in DURATIONS:
+        duration = settings.default_duration
+
+    tone = Tone.P
+    max_len = 0
+
+    for t in Tone:
+        name = TONE_NAMES[t]
+
+        if note[i:i+len(name)] == name and len(name) > max_len:
+            tone = t
+            max_len = len(name)
+
+    i += max_len
+
+    has_dot = False
+
+    if i < len(note) and note[i] == '.':
+        has_dot = True
+        i += 1
+
+    octave = 0
+
+    while i < len(note) and note[i].isdigit():
+        octave = octave * 10 + int(note[i])
+        i += 1
+
+    if  not (4 <= octave <= 7):
+        octave = settings.default_octave
+
+    if tone == Tone.P:
+        encoded_command = 882 + DURATIONS.index(duration)
+    else:
+        encoded_command = 888 + DURATIONS.index(duration) * 96 + (tone.value - 1) * 8 + (octave - 4) * 2 + has_dot
+
+    parsed_commands.append(encoded_command)
+
+if __name__ == '__main__':
+    print(parse_tone_commands(['o=8', 'D', '5E', '32G#.7'], Settings()))
