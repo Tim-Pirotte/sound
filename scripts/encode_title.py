@@ -13,29 +13,10 @@ def get_state_width_bytes(L: int, b: int) -> int:
     return math.ceil(bits_needed / 8)
 
 def encode_title(title: str, freq: dict, M: int, L: int, b: int) -> bytes:
-    assert L >= M
     assert len(title) >= 1 and title[-1] == ':'
     assert title.count(':') == 1
 
-    x = L
-    stream = []
-
-    for c in reversed(title):
-        assert ord(c) <= 127
-
-        f, c = freq[ord(c)]
-
-        while M * x >= b * L * f:
-            stream.append(x % b)
-            x //= b
-
-        x = (x // f) * M + c + (x % f)
-
-    out = bytearray()
-    out += x.to_bytes(get_state_width_bytes(L, b), byteorder='big')
-    out += bytes(stream)
-
-    return bytes(out)
+    return r.encode([ord(c) for c in title], freq, M, L, b)
 
 def build_slot_table(freq: dict, M: int) -> list[int]:
     slot_to_symbol = [0] * M

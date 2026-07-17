@@ -1,6 +1,37 @@
+import math
 from collections import Counter
 
 import probabilities as p
+
+def get_state_width_bytes(L: int, b: int) -> int:
+    max_value = L * b - 1
+    bits_needed = max_value.bit_length()
+
+    return math.ceil(bits_needed / 8)
+
+def encode(data: list[int], frequency_table: dict, M: int, L: int, b: int):
+    assert L >= M
+
+    x = L
+    stream = []
+
+    for d in reversed(data):
+        try:
+            f, c = frequency_table[d]
+        except KeyError:
+            raise ValueError(f'{d} is not in the frequency table')
+
+        while M * x >= b * L * f:
+            stream.append(x % b)
+            x //= b
+
+        x = (x // f) * M + c + (x % f)
+
+    out = bytearray()
+    out += x.to_bytes(get_state_width_bytes(L, b), byteorder='big')
+    out += bytes(stream)
+
+    return bytes(out)
 
 def generate_frequency_tables(counter: Counter, M: int, n_values: int, name: str):
     if M < n_values:
