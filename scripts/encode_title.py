@@ -1,8 +1,10 @@
 import math
 import importlib
+from collections import Counter
 
-import generate_rans_tables as g
+import rans as r
 import titles_table as t
+import probabilities as p
 
 def get_state_width_bytes(L: int, b: int) -> int:
     max_value = L * b - 1
@@ -21,7 +23,7 @@ def encode_title(title: str, freq: dict, M: int, L: int, b: int) -> bytes:
     for c in reversed(title):
         assert ord(c) <= 127
 
-        f, c = freq[c]
+        f, c = freq[ord(c)]
 
         while M * x >= b * L * f:
             stream.append(x % b)
@@ -35,8 +37,8 @@ def encode_title(title: str, freq: dict, M: int, L: int, b: int) -> bytes:
 
     return bytes(out)
 
-def build_slot_table(freq: dict, M: int) -> list[str]:
-    slot_to_symbol = [''] * M
+def build_slot_table(freq: dict, M: int) -> list[int]:
+    slot_to_symbol = [0] * M
 
     for char, (f, c) in freq.items():
         for i in range(f):
@@ -64,20 +66,20 @@ def decode_title(data: bytes, freq: dict, M: int, L: int, b: int) -> str:
         while x < L and stream:
             x = x * b + stream.pop()
 
-        message.append(s)
+        message.append(chr(s))
 
-        if s == ':':
+        if s == ord(':'):
             break
 
     return ''.join(message)
 
-def grid_search_M_and_L(M_values: list[int], L_factors: list[int]):
+def grid_search_M_and_L(counter: Counter, M_values: list[int], L_factors: list[int]):
     best_M = M_values[0]
     best_L = L_factors[0]
     best_compression = -float('inf')
 
     for M in M_values:
-        g.build_title_tables(M)
+        r.generate_frequency_tables(counter, M, 127, 'titles')
 
         global t
         t = importlib.reload(t)
@@ -100,9 +102,9 @@ def grid_search_M_and_L(M_values: list[int], L_factors: list[int]):
                     if skip:
                         continue
 
-                    encoded = encode_title(title, t.title_frequencies, M, M * k, 256)
+                    encoded = encode_title(title, t.titles_frequencies, M, M * k, 256)
 
-                    assert title == decode_title(encoded, t.title_frequencies, M, M * k, 256)
+                    assert title == decode_title(encoded, t.titles_frequencies, M, M * k, 256)
 
                     song_count += 1
                     compression += (len(title) - len(encoded)) / len(title)
@@ -117,4 +119,14 @@ def grid_search_M_and_L(M_values: list[int], L_factors: list[int]):
     print(f'Best M={best_M}, L={best_L} with {best_compression * 100:.2f}%')
 
 if __name__ == '__main__':
-    grid_search_M_and_L([128, 256, 512, 1024, 2048, 4096, 8192, 16384], [1, 2, 4, 8, 16, 32])
+    with open('dataset.txt', 'r') as file:
+        lines = [line for line in file]
+
+        counter = p.get_title_probabilities(lines)
+        counter = Counter({ord(k): v for k, v in counter.items()})
+
+    grid_search_M_and_L(
+        counter,
+        [128, 256, 512, 1024, 2048, 4096, 8192, 16384],
+        [1, 2, 4, 8, 16, 32],
+    )

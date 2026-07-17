@@ -104,6 +104,7 @@ if __name__ == '__main__':
 
         title_counter = p.get_title_probabilities(lines)
         title_counter = Counter({ord(k): v for k, v in title_counter.items()})
+
         tone_command_counter = p.get_command_probabilities(lines)
 
     generate_frequency_tables(title_counter, 256, 127, 'titles')

@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#define TITLES_TABLE_SIZE 256
+#define TITLES_TABLE_SIZE 16384
 
 extern const uint8_t TITLES_TABLE[TITLES_TABLE_SIZE];
 
