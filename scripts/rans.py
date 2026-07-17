@@ -2,6 +2,7 @@ import math
 from collections import Counter
 
 import probabilities as p
+import encode_title as et
 
 def get_state_width_bytes(L: int, b: int) -> int:
     max_value = L * b - 1
@@ -10,7 +11,13 @@ def get_state_width_bytes(L: int, b: int) -> int:
     return math.ceil(bits_needed / 8)
 
 def encode(data: list[int], frequency_table: dict, M: int, L: int, b: int):
-    assert L >= M
+    if L < M:
+        raise ValueError('L should be at least as large as M')
+
+    if data.count(0) != 0:
+        raise ValueError('The data cannot contain 0 since it is the terminator')
+
+    data.append(0)
 
     x = L
     stream = []
@@ -32,6 +39,42 @@ def encode(data: list[int], frequency_table: dict, M: int, L: int, b: int):
     out += bytes(stream)
 
     return bytes(out)
+
+def decode(data: bytes, frequency_table: dict, M: int, L: int, b: int) -> list[int]:
+    state_width = get_state_width_bytes(L, b)
+
+    x = int.from_bytes(data[:state_width], byteorder='big')
+    stream = list(data[state_width:])
+
+    slot_to_symbol = build_slot_table(frequency_table, M)
+    message = []
+
+    stream = list(stream)
+
+    while True:
+        slot = x % M
+        s = slot_to_symbol[slot]
+        f, c = frequency_table[s]
+        x = (x // M) * f + slot - c
+
+        while x < L and stream:
+            x = x * b + stream.pop()
+
+        if s == 0:
+            break
+
+        message.append(s)
+
+    return message
+
+def build_slot_table(frequency_table: dict, M: int) -> list[int]:
+    slot_to_symbol = [0] * M
+
+    for char, (f, c) in frequency_table.items():
+        for i in range(f):
+            slot_to_symbol[c + i] = char
+
+    return slot_to_symbol
 
 def generate_frequency_tables(counter: Counter, M: int, n_values: int, name: str):
     if M < n_values:
@@ -133,9 +176,7 @@ if __name__ == '__main__':
     with open('dataset.txt', 'r') as file:
         lines = [line for line in file]
 
-        title_counter = p.get_title_probabilities(lines)
-        title_counter = Counter({ord(k): v for k, v in title_counter.items()})
-
+        title_counter = et.get_title_probabilities(lines)
         tone_command_counter = p.get_command_probabilities(lines)
 
     generate_frequency_tables(title_counter, 256, 127, 'titles')

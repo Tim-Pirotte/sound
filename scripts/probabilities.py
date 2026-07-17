@@ -2,24 +2,6 @@ from collections import Counter
 
 import tone_command_parser as t
 
-def get_title_probabilities(songs: list[str]) -> Counter:
-    counter = Counter()
-
-    for song in songs:
-        title = song.split(':')[0] + ':'
-
-        skip = False
-
-        for char in title:
-            if ord(char) > 127:
-                skip = True
-                break
-
-        if not skip:
-            counter.update(title)
-
-    return counter
-
 def get_command_probabilities(songs: list[str]) -> Counter:
     counter = Counter()
 
@@ -37,7 +19,6 @@ def get_command_probabilities(songs: list[str]) -> Counter:
 
 if __name__ == '__main__':
     with open('dataset.txt', 'r') as file:
-        # probabilities = get_title_probabilities([line for line in file])
         probabilities = get_command_probabilities([line for line in file])
 
         for count in sorted(probabilities.items(), key=lambda x: x[1], reverse=True):
