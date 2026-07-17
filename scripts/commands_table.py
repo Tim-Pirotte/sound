@@ -1,4 +1,4 @@
-command_frequencies = {
+commands_frequencies = {
     0: (1, 0),
     1: (1, 1),
     2: (1, 2),

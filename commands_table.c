@@ -1,4 +1,6 @@
-const char COMMAND_TABLE[4096] = {
+#include "commands_table.h"
+
+const uint16_t COMMANDS_TABLE[COMMANDS_TABLE_SIZE] = {
     0,
     1,
     2,

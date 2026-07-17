@@ -42,6 +42,8 @@ add_executable(sound
     frequency_lut.c
     bsp.c
     rtttl.c
+    titles_table.c
+    commands_table.c
 )
 
 pico_set_program_name(sound "sound")
