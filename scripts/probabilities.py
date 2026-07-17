@@ -11,7 +11,7 @@ def get_command_probabilities(songs: list[str]) -> Counter:
         commands = defaults.split(',')
         commands.extend(tone_commands.split(','))
 
-        parsed_commands = t.parse_tone_commands(commands)
+        parsed_commands = t.encode_tone_commands(commands)
 
         counter.update(parsed_commands)
 
