@@ -1,7 +1,6 @@
 import math
 from collections import Counter
 
-import probabilities as p
 import encode_title as et
 
 def get_state_width_bytes(L: int, b: int) -> int:
@@ -171,13 +170,3 @@ def generate_frequency_tables(counter: Counter, M: int, n_values: int, name: str
 
     with open(f'{name}_table.h', 'w') as file:
         file.write(c_header)
-
-if __name__ == '__main__':
-    with open('dataset.txt', 'r') as file:
-        lines = [line for line in file]
-
-        title_counter = et.get_title_probabilities(lines)
-        tone_command_counter = p.get_command_probabilities(lines)
-
-    generate_frequency_tables(title_counter, 256, 127, 'titles')
-    generate_frequency_tables(tone_command_counter, 4096, 1463, 'commands')

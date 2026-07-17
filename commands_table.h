@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#define COMMANDS_TABLE_SIZE 4096
+#define COMMANDS_TABLE_SIZE 16384
 
 extern const uint16_t COMMANDS_TABLE[COMMANDS_TABLE_SIZE];
 
