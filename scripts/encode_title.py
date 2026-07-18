@@ -72,6 +72,8 @@ def grid_search_M_and_L(counter: Counter, M_values: list[int], L_factors: list[i
                 best_L = M * k
                 best_compression = compression / song_count
 
+    r.generate_frequency_tables(counter, best_M, 126, 'titles')
+
     print(f'Best M={best_M}, L={best_L} with {best_compression * 100:.2f}%')
 
 def get_title_frequencies(songs: list[str]) -> Counter:

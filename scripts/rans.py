@@ -1,15 +1,13 @@
 import math
 from collections import Counter
 
-import encode_title as et
-
 def get_state_width_bytes(L: int, b: int) -> int:
     max_value = L * b - 1
     bits_needed = max_value.bit_length()
 
     return math.ceil(bits_needed / 8)
 
-def encode(data: list[int], frequency_table: dict, M: int, L: int, b: int):
+def encode(data: list[int], frequency_table: dict, M: int, L: int, b: int) -> bytes:
     if L < M:
         raise ValueError('L should be at least as large as M')
 
@@ -34,16 +32,19 @@ def encode(data: list[int], frequency_table: dict, M: int, L: int, b: int):
         x = (x // f) * M + c + (x % f)
 
     out = bytearray()
-    out += x.to_bytes(get_state_width_bytes(L, b), byteorder='big')
     out += bytes(stream)
+    out += x.to_bytes(get_state_width_bytes(L, b), byteorder='big')
 
     return bytes(out)
+
+def pack_encoded_streams(streams: list[bytes]) -> bytes:
+    pass
 
 def decode(data: bytes, frequency_table: dict, M: int, L: int, b: int) -> list[int]:
     state_width = get_state_width_bytes(L, b)
 
-    x = int.from_bytes(data[:state_width], byteorder='big')
-    stream = list(data[state_width:])
+    x = int.from_bytes(data[-state_width:], byteorder='big')
+    stream = list(data[:-state_width])
 
     slot_to_symbol = build_slot_table(frequency_table, M)
     message = []

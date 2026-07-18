@@ -61,7 +61,6 @@ def rans_encode_tone_commands(commands: list[str], L: int, b: int) -> bytes:
 
     return r.encode(parsed_commands, ct.commands_frequencies, ct.M, L, b)
 
-# TODO make these use the imported module
 def rans_decode_tone_commands(commands: bytes, frequency_table: dict, M: int, L: int, b: int) -> list[str]:
     parsed_commands = r.decode(commands, frequency_table, M, L, b)
 
@@ -164,6 +163,8 @@ def grid_search_M_and_L(counter: Counter, M_values: list[int], L_factors: list[i
                 best_M = M
                 best_L = M * k
                 best_compression = compression / song_count
+
+    r.generate_frequency_tables(counter, best_M, 1463, 'commands')
 
     print(f'Best M={best_M}, L={best_L} with {best_compression * 100:.2f}%')
 
