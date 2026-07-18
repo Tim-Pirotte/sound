@@ -29,7 +29,7 @@ def cli_rtttl_encoder():
 
         print('Encoded:')
         print(''.join(f'{x:02x}' for x in encoded))
-        print(f'Compression: {(1 - (len(encoded) / len(song))) * 100:.2f}%')
+        print(f'\nCompression: {(1 - (len(encoded) / len(song))) * 100:.2f}%\n')
         print('Decoded:')
         decoded = r.decode(encoded, [title_encoder, commands_encoder])
         print(f'{"".join([et.decode_char(c) for c in decoded[0]])}:{etc.decode_tone_commands(decoded[1])}')
