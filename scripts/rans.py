@@ -19,10 +19,15 @@ def get_state_width_bytes(L: int, b: int) -> int:
 
     return math.ceil(bits_needed / 8)
 
-def encode(data: list[int], encoders: list[Encoder]) -> bytes:
+def encode(data_streams: list[list[int]], encoders: list[Encoder]) -> bytes:
+    if len(data_streams) != len(encoders):
+        raise ValueError('data_streams must have the same length as encoders')
+
     streams = []
 
-    for encoder in encoders:
+    for i, encoder in enumerate(encoders):
+        data = data_streams[i]
+
         if encoder.L < encoder.M:
             raise ValueError('L should be at least as large as M')
 

@@ -24,7 +24,7 @@ def decode_char(c: int):
 def rans_encode_title(title: str, L: int, b: int) -> bytes:
     encoder = r.Encoder(t.titles_frequencies, t.M, L, b)
 
-    return r.encode([encode_char(c) for c in title], [encoder])
+    return r.encode([[encode_char(c) for c in title]], [encoder])
 
 def rans_decode_title(data: bytes, L: int, b: int) -> str:
     encoder = r.Encoder(t.titles_frequencies, t.M, L, b)
