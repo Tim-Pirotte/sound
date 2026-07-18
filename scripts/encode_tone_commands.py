@@ -56,11 +56,12 @@ def decode_tone_commands(commands: list[int]) -> list[str]:
 
     return parsed_commands
 
-def rans_encode_tone_commands(commands: list[str], frequency_table: dict, M: int, L: int, b: int) -> bytes:
+def rans_encode_tone_commands(commands: list[str], L: int, b: int) -> bytes:
     parsed_commands = encode_tone_commands(commands)
 
-    return r.encode(parsed_commands, frequency_table, M, L, b)
+    return r.encode(parsed_commands, ct.commands_frequencies, ct.M, L, b)
 
+# TODO make these use the imported module
 def rans_decode_tone_commands(commands: bytes, frequency_table: dict, M: int, L: int, b: int) -> list[str]:
     parsed_commands = r.decode(commands, frequency_table, M, L, b)
 
@@ -151,13 +152,7 @@ def grid_search_M_and_L(counter: Counter, M_values: list[int], L_factors: list[i
                     commands = defaults.split(',')
                     commands.extend(tone_commands.split(','))
 
-                    encoded = rans_encode_tone_commands(
-                        commands,
-                        ct.commands_frequencies,
-                        M,
-                        M * k,
-                        256,
-                    )
+                    encoded = rans_encode_tone_commands(commands, M * k, 256)
 
                     song_count += 1
                     str_len = len(defaults) + len(':') + len(tone_commands) + len(':')

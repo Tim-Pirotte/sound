@@ -130,7 +130,10 @@ def generate_frequency_tables(counter: Counter, M: int, n_values: int, name: str
         slot_to_symbol.extend([value] * f)
         cum_sum += f
 
-    py = f'{name}_frequencies = {{\n'
+    py = f'M = {M}\n'
+    py += f'n_values = {n_values}\n\n'
+
+    py += f'{name}_frequencies = {{\n'
 
     for value, (f, c) in frequency_rans.items():
         py += f'    {value}: ({f}, {c}),\n'

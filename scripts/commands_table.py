@@ -1,3 +1,6 @@
+M = 16384
+n_values = 1463
+
 commands_frequencies = {
     0: (1, 0),
     1: (1, 1),
