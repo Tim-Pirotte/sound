@@ -4,7 +4,7 @@ from collections import Counter
 import rans as r
 import titles_table as t
 
-def encode_char(c):
+def encode_char(c: str):
     assert ord(c) < 128
     assert c != ':'
 
@@ -13,7 +13,7 @@ def encode_char(c):
     else:
         return ord(c) - 1
 
-def decode_char(c):
+def decode_char(c: int):
     assert c < 127
 
     if c < 58:
@@ -21,11 +21,14 @@ def decode_char(c):
     else:
         return chr(c + 1)
 
-def rans_encode_title(title: str, frequency_table: dict, M: int, L: int, b: int) -> bytes:
-    return r.encode([encode_char(c) for c in title], frequency_table, M, L, b)
+def rans_encode_title(title: str, L: int, b: int) -> bytes:
+    encoder = r.Encoder(t.titles_frequencies, t.M, L, b)
 
-def rans_decode_title(data: bytes, frequency_table: dict, M: int, L: int, b: int) -> str:
-    message = r.decode(data, frequency_table, M, L, b)
+    return r.encode([encode_char(c) for c in title], [encoder])
+
+def rans_decode_title(data: bytes, L: int, b: int) -> str:
+    encoder = r.Encoder(t.titles_frequencies, t.M, L, b)
+    message = r.decode(data, [encoder])[0]
 
     return ''.join([decode_char(c) for c in message])
 
@@ -58,9 +61,9 @@ def grid_search_M_and_L(counter: Counter, M_values: list[int], L_factors: list[i
                     if skip:
                         continue
 
-                    encoded = rans_encode_title(title, t.titles_frequencies, M, M * k, 256)
+                    encoded = rans_encode_title(title, M * k, 256)
 
-                    assert title == rans_decode_title(encoded, t.titles_frequencies, M, M * k, 256)
+                    assert title == rans_decode_title(encoded, M * k, 256)
 
                     song_count += 1
                     compression += (len(title) + 1 - len(encoded)) / (len(title) + 1)

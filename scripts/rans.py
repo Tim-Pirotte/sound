@@ -1,71 +1,97 @@
 import math
 from collections import Counter
 
+class Encoder:
+    frequency_table: dict
+    M: int
+    L: int
+    b: int
+
+    def __init__(self, frequency_table: dict, M: int, L: int, b: int) -> None:
+        self.frequency_table = frequency_table
+        self.M = M
+        self.L = L
+        self.b = b
+
 def get_state_width_bytes(L: int, b: int) -> int:
     max_value = L * b - 1
     bits_needed = max_value.bit_length()
 
     return math.ceil(bits_needed / 8)
 
-def encode(data: list[int], frequency_table: dict, M: int, L: int, b: int) -> bytes:
-    if L < M:
-        raise ValueError('L should be at least as large as M')
+def encode(data: list[int], encoders: list[Encoder]) -> bytes:
+    streams = []
 
-    if data.count(0) != 0:
-        raise ValueError('The data cannot contain 0 since it is the terminator')
+    for encoder in encoders:
+        if encoder.L < encoder.M:
+            raise ValueError('L should be at least as large as M')
 
-    data.append(0)
+        if data.count(0) != 0:
+            raise ValueError('The data cannot contain 0 since it is the terminator')
 
-    x = L
-    stream = []
+        data.append(0)
 
-    for d in reversed(data):
-        try:
-            f, c = frequency_table[d]
-        except KeyError:
-            raise ValueError(f'{d} is not in the frequency table')
+        x = encoder.L
+        stream = []
 
-        while M * x >= b * L * f:
-            stream.append(x % b)
-            x //= b
+        for d in reversed(data):
+            try:
+                f, c = encoder.frequency_table[d]
+            except KeyError:
+                raise ValueError(f'{d} is not in the frequency table')
 
-        x = (x // f) * M + c + (x % f)
+            while encoder.M * x >= encoder.b * encoder.L * f:
+                stream.append(x % encoder.b)
+                x //= encoder.b
 
-    out = bytearray()
-    out += bytes(stream)
-    out += x.to_bytes(get_state_width_bytes(L, b), byteorder='big')
+            x = (x // f) * encoder.M + c + (x % f)
 
-    return bytes(out)
+        out = bytearray()
+        out += bytes(stream)
+        out += x.to_bytes(get_state_width_bytes(encoder.L, encoder.b), byteorder='big')
 
-def pack_encoded_streams(streams: list[bytes]) -> bytes:
-    pass
+        streams.append(out)
 
-def decode(data: bytes, frequency_table: dict, M: int, L: int, b: int) -> list[int]:
-    state_width = get_state_width_bytes(L, b)
+    packed_stream = bytearray()
 
-    x = int.from_bytes(data[-state_width:], byteorder='big')
-    stream = list(data[:-state_width])
+    for stream in reversed(streams):
+        packed_stream += stream
 
-    slot_to_symbol = build_slot_table(frequency_table, M)
-    message = []
+    return packed_stream
 
-    stream = list(stream)
+# TODO we might be able to pack all state values in the same spaces
+def decode(data: bytes, encoders: list[Encoder]) -> list[list[int]]:
+    results = []
+    remaining = bytearray(data)
 
-    while True:
-        slot = x % M
-        s = slot_to_symbol[slot]
-        f, c = frequency_table[s]
-        x = (x // M) * f + slot - c
+    for encoder in encoders:
+        state_width = get_state_width_bytes(encoder.L, encoder.b)
 
-        while x < L and stream:
-            x = x * b + stream.pop()
+        x = int.from_bytes(remaining[-state_width:], byteorder='big')
+        stream = list(remaining[:-state_width])
 
-        if s == 0:
-            break
+        slot_to_symbol = build_slot_table(encoder.frequency_table, encoder.M)
 
-        message.append(s)
+        message = []
 
-    return message
+        while True:
+            slot = x % encoder.M
+            s = slot_to_symbol[slot]
+            f, c = encoder.frequency_table[s]
+            x = (x // encoder.M) * f + slot - c
+
+            while x < encoder.L and stream:
+                x = x * encoder.b + stream.pop()
+
+            if s == 0:
+                break
+
+            message.append(s)
+
+        results.append(message)
+        remaining = bytearray(stream)
+
+    return results
 
 def build_slot_table(frequency_table: dict, M: int) -> list[int]:
     slot_to_symbol = [0] * M

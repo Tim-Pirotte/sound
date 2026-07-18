@@ -58,11 +58,13 @@ def decode_tone_commands(commands: list[int]) -> list[str]:
 
 def rans_encode_tone_commands(commands: list[str], L: int, b: int) -> bytes:
     parsed_commands = encode_tone_commands(commands)
+    encoder = r.Encoder(ct.commands_frequencies, ct.M, L, b)
 
-    return r.encode(parsed_commands, ct.commands_frequencies, ct.M, L, b)
+    return r.encode(parsed_commands, [encoder])
 
 def rans_decode_tone_commands(commands: bytes, frequency_table: dict, M: int, L: int, b: int) -> list[str]:
-    parsed_commands = r.decode(commands, frequency_table, M, L, b)
+    encoder = r.Encoder(ct.commands_frequencies, ct.M, L, b)
+    parsed_commands = r.decode(commands, [encoder])[0]
 
     return decode_tone_commands(parsed_commands)
 
