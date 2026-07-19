@@ -189,8 +189,14 @@ if __name__ == '__main__':
     with open('dataset.txt', 'r') as file:
         counter = get_command_frequencies([line for line in file])
 
+    # grid_search_M_and_L(
+    #     counter,
+    #     [2048, 4096, 8192, 16384],
+    #     [1, 2, 4, 8, 16, 32],
+    # )
+
     grid_search_M_and_L(
         counter,
-        [2048, 4096, 8192, 16384],
-        [1, 2, 4, 8, 16, 32],
+        [16384],
+        [4],
     )
