@@ -64,7 +64,7 @@ def encode(data_streams: list[list[int]], encoders: list[Encoder]) -> bytes:
 
     return packed_stream
 
-# TODO we might be able to pack all state values in the same spaces
+# TODO we might be able to pack all state values in the same space
 def decode(data: bytes, encoders: list[Encoder]) -> list[list[int]]:
     results = []
     remaining = bytearray(data)
@@ -186,6 +186,14 @@ def generate_frequency_tables(counter: Counter, M: int, n_values: int, name: str
     elif n_values < 2**32:
         data_type = 'uint32_t'
 
+    c += f'const {name}_frequency_t {name.upper()}_FREQUENCIES[{name.upper()}_N_VALUES] = {{\n'
+
+    for value in sorted_values:
+        f, cum = frequency_rans[value]
+        c += f'    {{{f}, {cum}}},\n'
+
+    c += '};\n\n'
+
     c += f'const {data_type} {name.upper()}_TABLE[{name.upper()}_TABLE_SIZE] = {{\n'
 
     for command in slot_to_symbol:
@@ -196,11 +204,22 @@ def generate_frequency_tables(counter: Counter, M: int, n_values: int, name: str
     with open(f'{name}_table.c', 'w') as file:
         file.write(c)
 
-    c_header = f'#ifndef {name.upper()}_TABLE_H\n'
+    c_header =  f'#ifndef {name.upper()}_TABLE_H\n'
     c_header += f'#define {name.upper()}_TABLE_H\n\n'
+
     c_header += '#include <stdint.h>\n\n'
-    c_header += f'#define {name.upper()}_TABLE_SIZE {M}\n\n'
-    c_header += f'extern const {data_type} {name.upper()}_TABLE[{name.upper()}_TABLE_SIZE];\n\n'
+
+    c_header += f'#define {name.upper()}_TABLE_SIZE {M}\n'
+    c_header += f'#define {name.upper()}_N_VALUES {n_values}\n\n'
+
+    c_header += f'typedef struct {{\n'
+    c_header += f'    {data_type} f;\n'
+    c_header += f'    {data_type} c;\n'
+    c_header += f'}} {name}_frequency_t;\n\n'
+
+    c_header += f'extern const {data_type} {name.upper()}_TABLE[{name.upper()}_TABLE_SIZE];\n'
+    c_header += f'extern const {name}_frequency_t {name.upper()}_FREQUENCIES[{name.upper()}_N_VALUES];\n\n'
+
     c_header += '#endif\n'
 
     with open(f'{name}_table.h', 'w') as file:
