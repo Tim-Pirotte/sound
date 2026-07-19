@@ -107,15 +107,12 @@ def build_slot_table(frequency_table: dict, M: int) -> list[int]:
 
     return slot_to_symbol
 
-def generate_frequency_tables(counter: Counter, M: int, n_values: int, name: str):
+def get_frequency_table(counter: Counter, M: int, n_values: int):
     if M < n_values:
         raise ValueError('M cannot be smaller than n_values')
 
     if len(counter.keys()) > n_values:
         raise ValueError('counter cannot contain more keys than the value of n_values')
-
-    if n_values >= 2**64:
-        raise ValueError('n_values cannot exceed u64 capacity')
 
     for i in range(n_values):
         counter.setdefault(i, 0)
@@ -152,30 +149,21 @@ def generate_frequency_tables(counter: Counter, M: int, n_values: int, name: str
     sorted_values = sorted(frequency_map.keys())
 
     frequency_rans = {}
-    slot_to_symbol = []
 
     cum_sum = 0
 
     for value in sorted_values:
         f = frequency_map[value]
         frequency_rans[value] = (f, cum_sum)
-        slot_to_symbol.extend([value] * f)
         cum_sum += f
 
-    py = f'M = {M}\n'
-    py += f'n_values = {n_values}\n\n'
+    return frequency_rans
 
-    py += f'{name}_frequencies = {{\n'
+def generate_frequency_tables(frequency_table: dict, M: int, n_values: int, name: str, L: int, b: int):
+    if n_values >= 2**64:
+        raise ValueError('n_values cannot exceed u64 capacity')
 
-    for value, (f, c) in frequency_rans.items():
-        py += f'    {value}: ({f}, {c}),\n'
-
-    py += '}\n'
-
-    with open(f'scripts/{name}_table.py', 'w') as file:
-        file.write(py)
-
-    c = f'#include "{name}_table.h"\n\n'
+    c = f'#include "{name}_rans.h"\n\n'
 
     data_type = 'uint64_t'
 
@@ -186,22 +174,23 @@ def generate_frequency_tables(counter: Counter, M: int, n_values: int, name: str
     elif n_values < 2**32:
         data_type = 'uint32_t'
 
-    c += f'const {name}_frequency_t {name.upper()}_FREQUENCIES[{name.upper()}_N_VALUES] = {{\n'
+    c += f'const {name}_frequency_t {name.upper()}_FREQUENCIES[{name.upper()}_N_VALUES] = {{'
 
-    for value in sorted_values:
-        f, cum = frequency_rans[value]
-        c += f'    {{{f}, {cum}}},\n'
-
-    c += '};\n\n'
-
-    c += f'const {data_type} {name.upper()}_TABLE[{name.upper()}_TABLE_SIZE] = {{\n'
-
-    for command in slot_to_symbol:
-        c += f'    {command},\n'
+    c += ', '.join(
+        f'{{{f}, {cum}}}'
+        for value in sorted(frequency_table)
+        for f, cum in [frequency_table[value]]
+    )
 
     c += '};\n'
 
-    with open(f'{name}_table.c', 'w') as file:
+    c += f'const {data_type} {name.upper()}_TABLE[{name.upper()}_TABLE_SIZE] = {{'
+
+    c += ', '.join(f'{value}' for value in build_slot_table(frequency_table, M))
+
+    c += '};\n'
+
+    with open(f'{name}_rans.c', 'w') as file:
         file.write(c)
 
     c_header =  f'#ifndef {name.upper()}_TABLE_H\n'
@@ -210,7 +199,11 @@ def generate_frequency_tables(counter: Counter, M: int, n_values: int, name: str
     c_header += '#include <stdint.h>\n\n'
 
     c_header += f'#define {name.upper()}_TABLE_SIZE {M}\n'
-    c_header += f'#define {name.upper()}_N_VALUES {n_values}\n\n'
+    c_header += f'#define {name.upper()}_N_VALUES {n_values}\n'
+    c_header += f'#define M {M}\n'
+    c_header += f'#define L {L}\n'
+    c_header += f'#define B {b}\n'
+    c_header += f'#define STATE_WIDTH_BYTES {get_state_width_bytes(L, b)}\n\n'
 
     c_header += f'typedef struct {{\n'
     c_header += f'    {data_type} f;\n'
@@ -222,5 +215,5 @@ def generate_frequency_tables(counter: Counter, M: int, n_values: int, name: str
 
     c_header += '#endif\n'
 
-    with open(f'{name}_table.h', 'w') as file:
+    with open(f'{name}_rans.h', 'w') as file:
         file.write(c_header)

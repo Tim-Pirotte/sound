@@ -10,8 +10,8 @@
 // is the same as providing one if an entire note counts as a single value.
 
 // Title
-// 126 ASCII values + 1 terminator (':' cannot be used in the title in the text format)
-// = 127 values
+// 125 ASCII values + 1 terminator (':' cannot be used in the title in the text format. \0 will be used for termination)
+// = 126 values
 
 // Tone commands
 // 881 (20..900) bpm values + (6 duration values * 4 octave values * 12 notes * (1 has dot + 1 no dot)) + 6 duration values for pause + 1 terminator
@@ -28,3 +28,9 @@
 
 // We might be able to optimize the stream of tone commands further by using special characters
 // for duplicate sequences like LZ encoding
+
+// Scripts for calculating the frequencies and generating the tables are under the scripts directory
+
+// TODO put L and b into the generated code since they have to be in sync with the Python scripts
+
+

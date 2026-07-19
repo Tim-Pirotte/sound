@@ -1,8 +1,6 @@
-import importlib
 from collections import Counter
 
 import rans as r
-import titles_table as t
 
 def encode_char(c: str):
     assert ord(c) < 128
@@ -21,13 +19,13 @@ def decode_char(c: int):
     else:
         return chr(c + 1)
 
-def rans_encode_title(title: str, L: int, b: int) -> bytes:
-    encoder = r.Encoder(t.titles_frequencies, t.M, L, b)
+def rans_encode_title(title: str, frequency_table: dict, M: int, L: int, b: int) -> bytes:
+    encoder = r.Encoder(frequency_table, M, L, b)
 
     return r.encode([[encode_char(c) for c in title]], [encoder])
 
-def rans_decode_title(data: bytes, L: int, b: int) -> str:
-    encoder = r.Encoder(t.titles_frequencies, t.M, L, b)
+def rans_decode_title(data: bytes, frequency_table: dict, M: int, L: int, b: int) -> str:
+    encoder = r.Encoder(frequency_table, M, L, b)
     message = r.decode(data, [encoder])[0]
 
     return ''.join([decode_char(c) for c in message])
@@ -35,13 +33,17 @@ def rans_decode_title(data: bytes, L: int, b: int) -> str:
 def grid_search_M_and_L(counter: Counter, M_values: list[int], L_factors: list[int]):
     best_M = M_values[0]
     best_L = L_factors[0]
+    best_frequency_table = None
     best_compression = -float('inf')
 
-    for M in M_values:
-        r.generate_frequency_tables(counter, M, 126, 'titles')
+    if len(M_values) == 0:
+        raise ValueError('M_values should contain at least one value')
 
-        global t
-        t = importlib.reload(t)
+    if len(L_factors) == 0:
+        raise ValueError('L_factors should contain at least one value')
+
+    for M in M_values:
+        frequency_table = r.get_frequency_table(counter, M, 126)
 
         for k in L_factors:
             compression = 0
@@ -61,9 +63,9 @@ def grid_search_M_and_L(counter: Counter, M_values: list[int], L_factors: list[i
                     if skip:
                         continue
 
-                    encoded = rans_encode_title(title, M * k, 256)
+                    encoded = rans_encode_title(title, frequency_table, M, M * k, 256)
 
-                    assert title == rans_decode_title(encoded, M * k, 256)
+                    assert title == rans_decode_title(encoded, frequency_table, M, M * k, 256)
 
                     song_count += 1
                     compression += (len(title) + 1 - len(encoded)) / (len(title) + 1)
@@ -73,9 +75,12 @@ def grid_search_M_and_L(counter: Counter, M_values: list[int], L_factors: list[i
             if compression / song_count > best_compression:
                 best_M = M
                 best_L = M * k
+                best_frequency_table = frequency_table
                 best_compression = compression / song_count
 
-    r.generate_frequency_tables(counter, best_M, 126, 'titles')
+    assert best_frequency_table is not None
+
+    r.generate_frequency_tables(best_frequency_table, best_M, 126, 'titles', best_L, 256)
 
     print(f'Best M={best_M}, L={best_L} with {best_compression * 100:.2f}%')
 

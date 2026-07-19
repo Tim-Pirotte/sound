@@ -5,6 +5,10 @@
 
 #define COMMANDS_TABLE_SIZE 16384
 #define COMMANDS_N_VALUES 1463
+#define M 16384
+#define L 65536
+#define B 256
+#define STATE_WIDTH_BYTES 3
 
 typedef struct {
     uint16_t f;
