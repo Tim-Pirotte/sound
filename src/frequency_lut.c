@@ -141,3 +141,7 @@ const float FREQUENCY_LUT[NOTE_COUNT * OCTAVE_COUNT] = {
     12543.856f, // G9
     13289.752f  // G9#
 };
+
+float get_note(uint8_t octave, Tone tone) {
+    return FREQUENCY_LUT[octave * NOTE_COUNT + tone];
+}

@@ -3,12 +3,13 @@
 
 #include <stdint.h>
 
-#define COMMANDS_TABLE_SIZE 16384
-#define COMMANDS_N_VALUES 1463
-#define M 16384
-#define L 65536
-#define B 256
-#define STATE_WIDTH_BYTES 3
+enum {
+    COMMANDS_TABLE_SIZE = 16384,
+    COMMANDS_N_VALUES = 1463,
+    COMMANDS_L = 65536,
+    COMMANDS_B = 256,
+    COMMANDS_STATE_WIDTH_BYTES = 3,
+};
 
 typedef struct {
     uint16_t f;

@@ -6,13 +6,24 @@
 // If it were case insensitive then notes could be ambiguous with control pairs.
 // You could make it case insensitive by making '=' mandatory in control pairs.
 
-#include "pico/stdlib.h"
+#include "rtttl.h"
+#include "bsp.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
-
-#include "rtttl.h"
 #include "frequency_lut.h"
+
+static char peek(RTTTLParser *parser);
+static void advance(RTTTLParser *parser);
+static void advance_number(RTTTLParser *parser);
+
+static bool is_valid_duration(uint8_t duration);
+static bool is_valid_octave(uint8_t octave);
+
+static bool parse_control_pair(RTTTLParser *parser);
+
+static bool parse_u8(const char *str, uint8_t *result);
+static bool parse_u16(const char *str, uint16_t *result);
 
 static const uint8_t  DEFAULT_OCTAVE = 6;
 static const uint8_t  DEFAULT_DURATION = 4;
@@ -58,7 +69,7 @@ bool init_parser(RTTTLParser *parser, const char *song) {
 
     putchar('\n');
 
-    hard_assert(peek(parser) == ':');
+    bsp_assert(peek(parser) == ':');
     advance(parser);
 
     for (char c = peek(parser); c != ':'; c = peek(parser)) {
@@ -85,7 +96,7 @@ bool init_parser(RTTTLParser *parser, const char *song) {
         }
     };
 
-    hard_assert(peek(parser) == ':');
+    bsp_assert(peek(parser) == ':');
     advance(parser);
 
     return true;
@@ -112,45 +123,45 @@ bool get_next_note(RTTTLParser *parser, Note *out) {
         size_t pos_before = parser->pos;
         advance_number(parser);
 
-        Tone note = P;
+        Tone note = NOTE_P;
         bool can_have_sharp = false;
 
         switch (peek(parser)) {
             case 'A':
-                note = A;
+                note = NOTE_A;
                 can_have_sharp = true;
 
                 break;
             case 'B':
-                note = B;
+                note = NOTE_B;
 
                 break;
             case 'C':
-                note = C;
+                note = NOTE_C;
                 can_have_sharp = true;
 
                 break;
             case 'D':
-                note = D;
+                note = NOTE_D;
                 can_have_sharp = true;
 
                 break;
             case 'E':
-                note = E;
+                note = NOTE_E;
 
                 break;
             case 'F':
-                note = F;
+                note = NOTE_F;
                 can_have_sharp = true;
 
                 break;
             case 'G':
-                note = G;
+                note = NOTE_G;
                 can_have_sharp = true;
 
                 break;
             case 'P':
-                note = P;
+                note = NOTE_P;
 
                 break;
             default:
@@ -177,8 +188,8 @@ bool get_next_note(RTTTLParser *parser, Note *out) {
             note++;
         }
 
-        hard_assert(parser->settings.bpm != 0);
-        hard_assert(duration != 0);
+        bsp_assert(parser->settings.bpm != 0);
+        bsp_assert(duration != 0);
 
         float ms_per_note = MILLISECONDS_PER_MINUTE * QUARTER_NOTES_PER_WHOLE_NOTE / parser->settings.bpm;
         float duration_ms = ms_per_note / duration;
@@ -213,7 +224,7 @@ bool get_next_note(RTTTLParser *parser, Note *out) {
             return false;
         }
 
-        float frequency = FREQUENCY_LUT[octave * OCTAVE_SIZE + note];
+        float frequency = get_note(octave, note);
 
         out->frequency_hz = frequency;
         out->duration_ms = duration_ms;
@@ -222,9 +233,9 @@ bool get_next_note(RTTTLParser *parser, Note *out) {
     }
 }
 
-char peek(RTTTLParser *parser) {
-    hard_assert(parser != NULL);
-    hard_assert(parser->song != NULL);
+static char peek(RTTTLParser *parser) {
+    bsp_assert(parser != NULL);
+    bsp_assert(parser->song != NULL);
 
     while (parser->song[parser->pos] == ' ') {
         parser->pos++;
@@ -233,24 +244,24 @@ char peek(RTTTLParser *parser) {
     return parser->song[parser->pos];
 }
 
-void advance(RTTTLParser *parser) {
-    hard_assert(parser != NULL);
-    hard_assert(parser->song != NULL);
+static void advance(RTTTLParser *parser) {
+    bsp_assert(parser != NULL);
+    bsp_assert(parser->song != NULL);
 
     if (peek(parser) != '\0') parser->pos++;
 }
 
 // TODO We can use the pointer from parse int instead
-void advance_number(RTTTLParser *parser) {
-    hard_assert(parser != NULL);
-    hard_assert(parser->song != NULL);
+static void advance_number(RTTTLParser *parser) {
+    bsp_assert(parser != NULL);
+    bsp_assert(parser->song != NULL);
 
     for (char c = peek(parser); c != '\0' && '0' <= c && c <= '9'; c = peek(parser)) {
         advance(parser);
     };
 }
 
-bool is_valid_duration(uint8_t duration) {
+static bool is_valid_duration(uint8_t duration) {
     for (size_t i = 0; i < VALID_DURATION_COUNT; i++) {
         if (VALID_DURATIONS[i] == duration)
             return true;
@@ -265,7 +276,7 @@ bool is_valid_duration(uint8_t duration) {
     return false;
 }
 
-bool is_valid_octave(uint8_t octave) {
+static bool is_valid_octave(uint8_t octave) {
     if (!(MIN_OCTAVE <= octave && octave <= MAX_OCTAVE)) {
         printf(
             "Error: octave=%d but should be between (inclusive) %d and %d\n",
@@ -280,9 +291,9 @@ bool is_valid_octave(uint8_t octave) {
     return true;
 }
 
-bool parse_control_pair(RTTTLParser *parser) {
-    hard_assert(parser != NULL);
-    hard_assert(parser->song != NULL);
+static bool parse_control_pair(RTTTLParser *parser) {
+    bsp_assert(parser != NULL);
+    bsp_assert(parser->song != NULL);
 
     char c = peek(parser);
 
@@ -358,7 +369,7 @@ bool parse_control_pair(RTTTLParser *parser) {
     return true;
 }
 
-bool parse_u8(const char *str, uint8_t *result) {
+static bool parse_u8(const char *str, uint8_t *result) {
     if (*str == '-') return false;
 
     errno = 0;
@@ -377,7 +388,7 @@ bool parse_u8(const char *str, uint8_t *result) {
     return true;
 }
 
-bool parse_u16(const char *str, uint16_t *result) {
+static bool parse_u16(const char *str, uint16_t *result) {
     if (*str == '-') return false;
 
     errno = 0;

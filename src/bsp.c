@@ -1,3 +1,4 @@
+#include "bsp.h"
 #include <stdio.h>
 #include <string.h>
 #include <hardware/sync.h>
@@ -5,8 +6,6 @@
 #include "hardware/pwm.h"
 #include "hardware/clocks.h"
 #include "hardware/watchdog.h"
-
-#include "bsp.h"
 
 #define BUZZER_PIN 28
 
@@ -27,6 +26,7 @@ static volatile line_state_t line_state = READING;
 static volatile buffer_state_t buffer_state = CLEAR;
 static volatile size_t pos = 0;
 
+// TODO make fault handlers reboot
 void __attribute__((noreturn)) __assert_func(const char *file, int line, const char *func, const char *failedexpr) {
     watchdog_reboot(0, 0, 0);
 
@@ -53,13 +53,13 @@ void play_tone(float frequency) {
         return;
     }
 
-    float sys_clk = clock_get_hz(clk_sys);
-    uint32_t wrap = 10000;
+    uint32_t sys_clk = clock_get_hz(clk_sys);
+    uint16_t wrap = 10000;
 
     hard_assert(frequency != 0);
     hard_assert(wrap != 0);
 
-    float div = sys_clk / (frequency * wrap);
+    float div = (float)sys_clk / (frequency * wrap);
 
     pwm_set_clkdiv(slice_num, div);
     pwm_set_wrap(slice_num, wrap);
@@ -163,4 +163,12 @@ bool read_line(char *buf, size_t len) {
     line_state = READING;
 
     return true;
+}
+
+void bsp_assert(bool expression) {
+    hard_assert(expression);
+}
+
+void bsp_sleep_ms(uint32_t ms) {
+    sleep_ms(ms);
 }

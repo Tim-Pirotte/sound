@@ -38,12 +38,17 @@ add_compile_definitions(PARAM_ASSERTIONS_ENABLE_ALL=1)
 # Add executable. Default name is the project name, version 0.1
 
 add_executable(sound
-    sound.c
-    frequency_lut.c
-    bsp.c
-    rtttl.c
-    titles_table.c
-    commands_table.c
+    src/main.c
+    src/frequency_lut.c
+    src/bsp.c
+    src/rtttl.c
+    src/rtttl_binary.c
+    src/titles_rans.c
+    src/commands_rans.c
+)
+
+target_include_directories(sound PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
 pico_set_program_name(sound "sound")

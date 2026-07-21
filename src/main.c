@@ -1,7 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "pico/stdlib.h"
-#include "pico/assert.h"
 
 #include "frequency_lut.h"
 #include "bsp.h"
@@ -33,9 +31,9 @@ void execute_command() {
 
     while (get_next_note(&parser, &note)) {
         play_tone(note.frequency_hz);
-        sleep_ms(note.duration_ms);
+        bsp_sleep_ms(note.duration_ms);
         play_tone(0.0f);
-        sleep_ms(INTERMEDIATE_DELAY_MS);
+        bsp_sleep_ms(INTERMEDIATE_DELAY_MS);
     }
 
     play_tone(0.0f);

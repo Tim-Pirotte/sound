@@ -31,6 +31,12 @@
 
 // Scripts for calculating the frequencies and generating the tables are under the scripts directory
 
-// TODO put L and b into the generated code since they have to be in sync with the Python scripts
+#include "rtttl_binary.h"
 
+bool init_parser(BinaryParser *parser, const uint16_t song[]) {
 
+}
+
+bool get_next_note(BinaryParser *parser, Note *out) {
+
+}

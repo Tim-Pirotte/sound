@@ -190,7 +190,7 @@ def generate_frequency_tables(frequency_table: dict, M: int, n_values: int, name
 
     c += '};\n'
 
-    with open(f'{name}_rans.c', 'w') as file:
+    with open(f'src/{name}_rans.c', 'w') as file:
         file.write(c)
 
     c_header =  f'#ifndef {name.upper()}_TABLE_H\n'
@@ -198,12 +198,13 @@ def generate_frequency_tables(frequency_table: dict, M: int, n_values: int, name
 
     c_header += '#include <stdint.h>\n\n'
 
-    c_header += f'#define {name.upper()}_TABLE_SIZE {M}\n'
-    c_header += f'#define {name.upper()}_N_VALUES {n_values}\n'
-    c_header += f'#define M {M}\n'
-    c_header += f'#define L {L}\n'
-    c_header += f'#define B {b}\n'
-    c_header += f'#define STATE_WIDTH_BYTES {get_state_width_bytes(L, b)}\n\n'
+    c_header += 'enum {\n'
+    c_header += f'    {name.upper()}_TABLE_SIZE = {M},\n'
+    c_header += f'    {name.upper()}_N_VALUES = {n_values},\n'
+    c_header += f'    {name.upper()}_L = {L},\n'
+    c_header += f'    {name.upper()}_B = {b},\n'
+    c_header += f'    {name.upper()}_STATE_WIDTH_BYTES = {get_state_width_bytes(L, b)},\n'
+    c_header += '};\n\n'
 
     c_header += f'typedef struct {{\n'
     c_header += f'    {data_type} f;\n'
@@ -215,5 +216,5 @@ def generate_frequency_tables(frequency_table: dict, M: int, n_values: int, name
 
     c_header += '#endif\n'
 
-    with open(f'{name}_rans.h', 'w') as file:
+    with open(f'include/{name}_rans.h', 'w') as file:
         file.write(c_header)

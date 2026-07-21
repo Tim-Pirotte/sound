@@ -3,12 +3,13 @@
 
 #include <stdint.h>
 
-#define TITLES_TABLE_SIZE 256
-#define TITLES_N_VALUES 126
-#define M 256
-#define L 256
-#define B 256
-#define STATE_WIDTH_BYTES 2
+enum {
+    TITLES_TABLE_SIZE = 256,
+    TITLES_N_VALUES = 126,
+    TITLES_L = 256,
+    TITLES_B = 256,
+    TITLES_STATE_WIDTH_BYTES = 2,
+};
 
 typedef struct {
     uint8_t f;
