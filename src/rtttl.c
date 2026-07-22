@@ -13,6 +13,8 @@
 #include <errno.h>
 #include "frequency_lut.h"
 
+#define SONG_BUFFER_SIZE 2048
+
 static char peek(RTTTLParser *parser);
 static void advance(RTTTLParser *parser);
 static void advance_number(RTTTLParser *parser);
@@ -42,7 +44,37 @@ static const size_t VALID_DURATION_COUNT = sizeof(VALID_DURATIONS) / sizeof(VALI
 static const uint8_t MIN_OCTAVE = 4;
 static const uint8_t MAX_OCTAVE = 7;
 
-bool init_parser(RTTTLParser *parser, const char *song) {
+static const ParserVTable RTTTL_VTABLE = {
+    init_parser_rtttl,
+    get_next_note_rtttl,
+};
+
+static RTTTLParser RTTTL_DATA = {
+    .song = NULL,
+    .pos = 0,
+    .settings = {
+        .default_octave = DEFAULT_OCTAVE,
+        .default_duration = DEFAULT_DURATION,
+        .bpm = DEFAULT_BPM,
+    }
+};
+
+Parser RTTTL_PARSER = {
+        .vtable = &RTTTL_VTABLE,
+        .data = &RTTTL_DATA,
+};
+
+bool init_parser_rtttl(Parser *p) {
+    RTTTLParser *parser = (RTTTLParser *)p->data;
+
+    static char song[SONG_BUFFER_SIZE];
+
+    if (!read_line(song, SONG_BUFFER_SIZE)) {
+        printf("Error: song length exceeds buffer size of %d", SONG_BUFFER_SIZE);
+
+        return false;
+    }
+
     parser->song = song;
     parser->pos = 0;
     parser->settings = (Settings){DEFAULT_OCTAVE, DEFAULT_DURATION, DEFAULT_BPM};
@@ -102,7 +134,9 @@ bool init_parser(RTTTLParser *parser, const char *song) {
     return true;
 }
 
-bool get_next_note(RTTTLParser *parser, Note *out) {
+bool get_next_note_rtttl(Parser *p, Note *out) {
+    RTTTLParser *parser = (RTTTLParser *)p->data;
+
     // We keep going until we found a note or the end has been reached
     // <tone-command> := <note> | <control-pair>
     while (true) {

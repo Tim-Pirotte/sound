@@ -3,6 +3,7 @@
 
 #include "frequency_lut.h"
 #include "bsp.h"
+#include "parser.h"
 #include "rtttl.h"
 
 #define COMMAND_BUFFER_SIZE 2048
@@ -21,15 +22,13 @@ void execute_command() {
         return;
     }
 
-    RTTTLParser parser;
-
-    if (!init_parser(&parser, command)) {
+    if (!init_parser(&RTTTL_PARSER)) {
         return;
     }
 
     Note note;
 
-    while (get_next_note(&parser, &note)) {
+    while (get_next_note(&RTTTL_PARSER, &note)) {
         play_tone(note.frequency_hz);
         bsp_sleep_ms(note.duration_ms);
         play_tone(0.0f);
